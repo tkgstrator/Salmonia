@@ -7,13 +7,17 @@ from time import sleep
 
 class SalmonRec():
     def __init__(self):
-        path = os.path.dirname(os.path.abspath(sys.argv[0])) + "/config.ini"
+        print("Salmonia version b1")
+        print("Thanks @Yukinkling and @barley_ural!")
+        path = os.path.dirname(os.path.abspath(sys.argv[0])) + "/config.json"
         try:
             with open(path) as f:
-                self.session = f.readline().strip()
-                self.token = f.readline().strip()
+                df = json.load(f)
+                self.session = df["iksm_session"]
+                self.token = df["api-token"]
+                self.latest = df["latest"]
         except FileNotFoundError:
-            print("config.ini is not found.")
+            print("config.json is not found.")
             sys.exit()
 
         url = "https://app.splatoon2.nintendo.net"
@@ -28,37 +32,46 @@ class SalmonRec():
                 print("Unknown error.")
             sys.exit()
 
-    def upload(self, path):
+    def upload(self, path, jobid):
         file = json.load(open(path, "r"))
         result = {"results": [file]}
         url = "https://salmon-stats-api.yuki.games/api/results"
         headers = {"Content-type": "application/json",
                    "Authorization": "Bearer " + self.token}
         res = requests.post(url, data=json.dumps(result), headers=headers)
-        if res.status_code == 200:
-            data = res.json()
-            if data[0]["created"] == True:
-                return True
-            else:
-                return False
-        else:
-            return False
+        
+        if res.status_code == 401: #認証エラー
+            print("Api token is invalid.")
+            sys.exit()
+        if res.status_code == 200: #認証成功
+            return True
+        return False
 
-    def uploadAll(self):
+    def uploadAll(self, latest):
         file = []
         dir = os.listdir("json")
+        # ファイル名をソーティング
         for p in dir:
             file.append(p[0:-5])
         file.sort(key=int, reverse=True)
-        for p in file:
-            base = p + ".json"
-            if self.upload("json/" + base) == True:
-                print(datetime.now().strftime('%Y/%m/%d %H:%M:%S') + " : " + base + " uploaded success!")
-            else:
+        
+        # jobidでアップロード
+        for jobid in file:
+            # 設定ファイルから読み込んだ最新リザルトIDを使用
+            if self.latest >= int(jobid):
                 print(datetime.now().strftime('%Y/%m/%d %H:%M:%S') + " : No new records.")
-                return False
-            sleep(10)
-        return True
+                break
+            path = "json/" + jobid + ".json"
+            if self.upload(path, jobid) == True:
+                print(datetime.now().strftime('%Y/%m/%d %H:%M:%S') + " : " + jobid + " uploaded success!")
+            sleep(1)
+            
+        # 最新リザルトIDを更新
+        self.latest = latest
+        path = os.path.dirname(os.path.abspath(sys.argv[0])) + "/config.json"
+        with open(path, "w") as f:
+            config = {"iksm_session" : self.session, "api-token" : self.token, "latest" : self.latest}
+            json.dump(config, f, indent=4)
 
     def getResults(self):
         # 最新のリザルトIDを取得する
@@ -84,12 +97,13 @@ class SalmonRec():
             with open(path, mode="w") as f:
                 f.write(res)
             sleep(5)
-        return 0
+        return resid
 
 if __name__ == "__main__":
     user = SalmonRec()
     
     while True:
-        user.getResults()
-        user.uploadAll()
+        # 最新データを取得した上で、取得した最新のリザルトIDを保存
+        latest = user.getResults()
+        user.uploadAll(latest)
         sleep(10)
