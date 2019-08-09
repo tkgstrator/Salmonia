@@ -13,7 +13,8 @@ class SalmonRec():
                 self.session = f.readline().strip()
                 self.token = f.readline().strip()
         except FileNotFoundError:
-            exit(0)
+            print("config.ini is not found.")
+            sys.exit()
 
         url = "https://app.splatoon2.nintendo.net"
         print("Checking iksm_session's validation.")
@@ -25,7 +26,7 @@ class SalmonRec():
                 print("Your iksm_session is invalid.")
             else:
                 print("Unknown error.")
-            exit(0)
+            sys.exit()
 
     def upload(self, path):
         file = json.load(open(path, "r"))
