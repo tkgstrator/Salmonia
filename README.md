@@ -6,6 +6,7 @@ Download JSON from Nintendo and Upload SalmonStats automatically.
 
 ## How to use
 `pip install -r requirements.txt`
+
 `python Salmonia.py`
  
 # Thanks
