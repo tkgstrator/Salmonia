@@ -12,7 +12,7 @@ LANG = "en-US"
 
 class SalmonRec():
     def __init__(self):
-        print(datetime.now().strftime("%H:%M:%S ") + "Salmonia version b1")
+        print(datetime.now().strftime("%H:%M:%S ") + "Salmonia version b3")
         print(datetime.now().strftime("%H:%M:%S ") + "Thanks @Yukinkling and @barley_ural!")
         path = os.path.dirname(os.path.abspath(sys.argv[0])) + "/config.json"
         try:
@@ -35,37 +35,39 @@ class SalmonRec():
             if res.text == "Forbidden":
                 print(datetime.now().strftime("%H:%M:%S ") + "Your iksm_session is expired.")
                 if self.session != "":
-                    print(datetime.now().strftime("%H:%M:%S ") + "Regenerate the iksm_session.")
+                    print(datetime.now().strftime("%H:%M:%S ") + "Regenerate iksm_session.")
                     # Regenerate iksm_session with session_token
-                    cookie = iksm.get_cookie(self.session, LANG, VERSION)
+                    self.cookie = iksm.get_cookie(self.session, LANG, VERSION)
                     with open("config.json", mode="w") as f:
                         data = {
-                            "iksm_session": cookie,
+                            "iksm_session": self.cookie,
                             "session_token": self.session,
                             "api-token": self.token,
-                            "latest": self.latest
+                            "latest": self.latest,
                         }
                         json.dump(data, f, indent=4)
                 else:
                     self.setConfig()
             else:
                 print(datetime.now().strftime("%H:%M:%S ") + "Unknown error.")
-            sys.exit()
+                sys.exit()
 
-    def setConfig(self):
-        token = iksm.log_in(VERSION)
-        cookie = iksm.get_cookie(token, LANG, VERSION)
+    def setConfig(self, token=""):
+        session = iksm.log_in(VERSION)
+        cookie = iksm.get_cookie(session, LANG, VERSION)
         with open("config.json", mode="w") as f:
             data = {
                 "iksm_session": cookie,
-                "session_token": token,
-                "api-token": "",
-                "latest": 0
+                "session_token": session,
+                "api-token": token,
+                "latest": 0,
             }
             json.dump(data, f, indent=4)
         self.cookie = cookie
+        self.latest = 0
 
-    def upload(self, path, jobid):
+    def upload(self, resid):
+        path = "json/" + resid + ".json"
         file = json.load(open(path, "r"))
         result = {"results": [file]}
         url = "https://salmon-stats-api.yuki.games/api/results"
@@ -77,72 +79,81 @@ class SalmonRec():
             print("Api token is invalid.")
             sys.exit()
         if res.status_code == 200:  # 認証成功
-            return True
-        return False
+            # レスポンスの変換
+            text = json.loads(res.text)[0]
+            if text["created"] == False:
+                print(datetime.now().strftime("%H:%M:%S ") + resid + " already uploaded!")
+            else:
+                print(datetime.now().strftime("%H:%M:%S ") + resid + " uploaded!")
+        if res.status_code == 500:
+            print(datetime.now().strftime("%H:%M:%S ") + resid + " is not recoginized schedule_id")
 
-    def uploadAll(self, latest):
+
+    def uploadAll(self):
         file = []
         dir = os.listdir("json")
         # ファイル名をソーティング
         for p in dir:
             file.append(p[0:-5])
-        file.sort(key=int, reverse=True)
+        file.sort(key=int)
 
-        # jobidでアップロード
-        for jobid in file:
-            # 設定ファイルから読み込んだ最新リザルトIDを使用
-            if self.latest >= int(jobid):
-                print(datetime.now().strftime(
-                    "%H:%M:%S ") + "No new records.")
-                break
-            path = "json/" + jobid + ".json"
-            if self.upload(path, jobid) == True:
-                print(datetime.now().strftime(" %H:%M:%S ") + jobid + " uploaded!")
-            sleep(1)
-
-        # 最新リザルトIDを更新
-        self.latest = latest
-        path = os.path.dirname(os.path.abspath(sys.argv[0])) + "/config.json"
-        with open(path, "w") as f:
-            config = {"iksm_session": self.cookie,
-                      "api-token": self.token, "latest": self.latest}
-            json.dump(config, f, indent=4)
+        for resid in file:
+            if self.latest < int(resid):
+                self.upload(resid)
+                with open("config.json", mode="w") as f:
+                    data = {
+                        "iksm_session": self.cookie,
+                        "session_token": self.session,
+                        "api-token": self.token,
+                        "latest": int(resid),
+                    }
+                    json.dump(data, f, indent=4)
+            sleep(5)
+        
 
     def getResults(self):
         # 最新のリザルトIDを取得する
         url = "https://app.splatoon2.nintendo.net/api/coop_results"
         res = requests.get(url, cookies=dict(iksm_session=self.cookie)).json()
-        resid = int(res["summary"]["card"]["job_num"])
-        max = 50 if resid >= 50 else resid
+        resmid = int(res["summary"]["card"]["job_num"])
+        max = 50 if resmid >= 50 else resmid
 
         dir = os.listdir()
-        if "json" not in dir:
-            print(datetime.now().strftime("%H:%M:%S ") + "Make Directory...")
+        if "json" not in dir: # ディレクトリがなければ作成
+            print(datetime.now().strftime("%H:%M:%S ") + "Make directory...")
             os.mkdir("json")
         list = os.listdir("json")
-        for i in range(0, max):
-            if (str(resid - i) + ".json") in list:
-                break
+        for i in range(1, max + 1):
+            resid = resmid - max + i
+            if (str(resid) + ".json") in list:
+                continue
             print(datetime.now().strftime("%H:%M:%S ") +
-                  "Saved " + str(resid - i))
+                  "Saved " + str(resid))
             url = "https://app.splatoon2.nintendo.net/api/coop_results/" + \
-                str(resid - i)
+                str(resid)
             res = requests.get(url, cookies=dict(
                 iksm_session=self.cookie)).text
             path = os.path.dirname(os.path.abspath(
-                sys.argv[0])) + "/json/" + str(resid - i) + ".json"
+                sys.argv[0])) + "/json/" + str(resid) + ".json"
             with open(path, mode="w") as f:
                 f.write(res)
+            # トークンが保存されていたらアップロードする
+            if self.token is not "":
+                self.upload(resid)
             # sleep(5)
-        return resid
 
 
 if __name__ == "__main__":
     user = SalmonRec()
-    print(datetime.now().strftime("%H:%M:%S ") + "Waiting New Records.")
+
+    # 保存済みデータのアップロード
+    if user.token is not "":
+        print(datetime.now().strftime("%H:%M:%S ") + "Checking your records.")
+        user.uploadAll()
+
+    print(datetime.now().strftime("%H:%M:%S ") + "Waiting new records.")
 
     while True:
-        # 最新データを取得した上で、取得した最新のリザルトIDを保存
-        latest = user.getResults()
-        # user.uploadAll(latest)
-        sleep(5)
+        # 最新データを取得した上で、取得した最古のリザルトIDを保存
+        user.getResults()
+        sleep(60)
