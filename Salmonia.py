@@ -53,20 +53,21 @@ class SalmonRec():
                 sys.exit()
 
     def setConfig(self, token=""):
-        session = iksm.log_in(VERSION)
-        cookie = iksm.get_cookie(session, LANG, VERSION)
+        self.session = iksm.log_in(VERSION)
+        self.cookie = iksm.get_cookie(self.session, LANG, VERSION)
         with open("config.json", mode="w") as f:
             data = {
-                "iksm_session": cookie,
-                "session_token": session,
+                "iksm_session": self.cookie,
+                "session_token": self.session,
                 "api-token": token,
                 "latest": 0,
             }
             json.dump(data, f, indent=4)
-        self.cookie = cookie
+        self.token = token
         self.latest = 0
 
     def upload(self, resid):
+        resid = str(resid)
         path = "json/" + resid + ".json"
         file = json.load(open(path, "r"))
         result = {"results": [file]}
@@ -140,7 +141,7 @@ class SalmonRec():
             # トークンが保存されていたらアップロードする
             if self.token is not "":
                 self.upload(resid)
-            # sleep(5)
+            sleep(1)
 
 
 if __name__ == "__main__":
@@ -156,4 +157,4 @@ if __name__ == "__main__":
     while True:
         # 最新データを取得した上で、取得した最古のリザルトIDを保存
         user.getResults()
-        sleep(60)
+        sleep(10)
