@@ -2,29 +2,41 @@ import requests
 import sys
 import json
 import os
+import webbrowser
 from datetime import datetime
 from time import sleep
 import iksm
 
-VERSION = "1.5.0"
-LANG = "en-US"
 
+VERSION = "1.5.2"
+LANG = "en-US"
+URL = "https://salmon-stats.yuki.games/"
 
 class SalmonRec():
     def __init__(self):
-        print(datetime.now().strftime("%H:%M:%S ") + "Salmonia version b3")
+        print(datetime.now().strftime("%H:%M:%S ") + "Salmonia version b5")
         print(datetime.now().strftime("%H:%M:%S ") + "Thanks @Yukinkling and @barley_ural!")
         path = os.path.dirname(os.path.abspath(sys.argv[0])) + "/config.json"
         try:
             with open(path) as f:
-                df = json.load(f)
-                self.cookie = df["iksm_session"]
-                self.session = df["session_token"]
-                self.token = df["api-token"]
-                self.latest = df["latest"]
+                try:
+                    df = json.load(f)
+                    self.cookie = df["iksm_session"]
+                    self.session = df["session_token"]
+                    self.token = df["api-token"]
+                    self.latest = df["latest"]
+                except json.decoder.JSONDecodeError:
+                    print(datetime.now().strftime("%H:%M:%S ") + "config.json is broken.")
+                    print(datetime.now().strftime("%H:%M:%S ") + "Regenerate config.json.")
+                    self.setConfig()
         except FileNotFoundError:
             print(datetime.now().strftime("%H:%M:%S ") + "config.json is not found.")
             self.setConfig()
+
+        dir = os.listdir()
+        if "json" not in dir: # ディレクトリがなければ作成
+            print(datetime.now().strftime("%H:%M:%S ") + "Make directory...")
+            os.mkdir("json")
 
         url = "https://app.splatoon2.nintendo.net"
         print(datetime.now().strftime("%H:%M:%S ") + "Checking iksm_session's validation.")
@@ -50,20 +62,31 @@ class SalmonRec():
                     self.setConfig()
             else:
                 print(datetime.now().strftime("%H:%M:%S ") + "Unknown error.")
-                sys.exit()
+                sys.exit(1)
 
     def setConfig(self, token=""):
         self.session = iksm.log_in(VERSION)
         self.cookie = iksm.get_cookie(self.session, LANG, VERSION)
+        webbrowser.open(URL)
+        print(datetime.now().strftime("%H:%M:%S ") + "Login and Paste API token.")
+        while True:
+            try:
+                self.token = input("")
+                if len(self.token) == 64:
+                    break
+                else:
+                    print(datetime.now().strftime("%H:%M:%S ") + "Paste API token again.")
+            except KeyboardInterrupt:
+                print("\nBye!")
+                sys.exit(1)
         with open("config.json", mode="w") as f:
             data = {
                 "iksm_session": self.cookie,
                 "session_token": self.session,
-                "api-token": token,
+                "api-token": self.token,
                 "latest": 0,
             }
             json.dump(data, f, indent=4)
-        self.token = token
         self.latest = 0
 
     def upload(self, resid):
@@ -92,11 +115,11 @@ class SalmonRec():
                         "latest": int(resid),
                     }
                     json.dump(data, f, indent=4)
-                sleep(5)
             else:
                 print(datetime.now().strftime("%H:%M:%S ") + resid + " uploaded!")
         if res.status_code == 500:
             print(datetime.now().strftime("%H:%M:%S ") + resid + " is not recoginized schedule_id")
+        sleep(5)
 
 
     def uploadAll(self):
@@ -106,11 +129,10 @@ class SalmonRec():
         for p in dir:
             file.append(p[0:-5])
         file.sort(key=int)
-
         for resid in file:
             if self.latest < int(resid):
                 self.upload(resid)
-        
+
 
     def getResults(self):
         # 最新のリザルトIDを取得する
@@ -119,10 +141,6 @@ class SalmonRec():
         resmid = int(res["summary"]["card"]["job_num"])
         max = 50 if resmid >= 50 else resmid
 
-        dir = os.listdir()
-        if "json" not in dir: # ディレクトリがなければ作成
-            print(datetime.now().strftime("%H:%M:%S ") + "Make directory...")
-            os.mkdir("json")
         list = os.listdir("json")
         for i in range(1, max + 1):
             resid = resmid - max + i
@@ -141,18 +159,16 @@ class SalmonRec():
             # トークンが保存されていたらアップロードする
             if self.token is not "":
                 self.upload(resid)
+            sleep(1)
 
 
 if __name__ == "__main__":
     user = SalmonRec()
-
     # 保存済みデータのアップロード
     if user.token is not "":
         print(datetime.now().strftime("%H:%M:%S ") + "Checking your records.")
         user.uploadAll()
-
     print(datetime.now().strftime("%H:%M:%S ") + "Waiting new records.")
-
     while True:
         # 最新データを取得した上で、取得した最古のリザルトIDを保存
         user.getResults()

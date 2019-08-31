@@ -13,6 +13,7 @@ import uuid
 import time
 import random
 import string
+import webbrowser
 
 session = requests.Session()
 version = "unknown"
@@ -65,9 +66,8 @@ def log_in(ver):
 
     post_login = r.history[0].url
 
-    print("\nNavigate to this URL in your browser:")
-    print(post_login)
     print("Log in, right click the \"Select this person\" button, copy the link address, and paste it below:")
+    webbrowser.open(post_login)
     while True:
         try:
             use_account_url = input("")
