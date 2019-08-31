@@ -14,7 +14,7 @@ URL = "https://salmon-stats.yuki.games/"
 
 class SalmonRec():
     def __init__(self):
-        print(datetime.now().strftime("%H:%M:%S ") + "Salmonia version b5")
+        print(datetime.now().strftime("%H:%M:%S ") + "Salmonia version 1.0")
         print(datetime.now().strftime("%H:%M:%S ") + "Thanks @Yukinkling and @barley_ural!")
         path = os.path.dirname(os.path.abspath(sys.argv[0])) + "/config.json"
         try:
@@ -71,9 +71,15 @@ class SalmonRec():
         print(datetime.now().strftime("%H:%M:%S ") + "Login and Paste API token.")
         while True:
             try:
-                self.token = input("")
-                if len(self.token) == 64:
-                    break
+                token = input("")
+                if len(token) == 64:
+                    try:
+                        int(token, 16)
+                        print(datetime.now().strftime("%H:%M:%S ") + "Valid token.")
+                        self.token = token
+                        break
+                    except ValueError:
+                        print(datetime.now().strftime("%H:%M:%S ") + "Paste API token again.")
                 else:
                     print(datetime.now().strftime("%H:%M:%S ") + "Paste API token again.")
             except KeyboardInterrupt:
@@ -169,6 +175,7 @@ if __name__ == "__main__":
         print(datetime.now().strftime("%H:%M:%S ") + "Checking your records.")
         user.uploadAll()
     print(datetime.now().strftime("%H:%M:%S ") + "Waiting new records.")
+
     while True:
         # 最新データを取得した上で、取得した最古のリザルトIDを保存
         user.getResults()
