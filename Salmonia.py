@@ -84,6 +84,15 @@ class SalmonRec():
             text = json.loads(res.text)[0]
             if text["created"] == False:
                 print(datetime.now().strftime("%H:%M:%S ") + resid + " already uploaded!")
+                with open("config.json", mode="w") as f:
+                    data = {
+                        "iksm_session": self.cookie,
+                        "session_token": self.session,
+                        "api-token": self.token,
+                        "latest": int(resid),
+                    }
+                    json.dump(data, f, indent=4)
+                sleep(5)
             else:
                 print(datetime.now().strftime("%H:%M:%S ") + resid + " uploaded!")
         if res.status_code == 500:
@@ -101,15 +110,6 @@ class SalmonRec():
         for resid in file:
             if self.latest < int(resid):
                 self.upload(resid)
-                with open("config.json", mode="w") as f:
-                    data = {
-                        "iksm_session": self.cookie,
-                        "session_token": self.session,
-                        "api-token": self.token,
-                        "latest": int(resid),
-                    }
-                    json.dump(data, f, indent=4)
-            sleep(5)
         
 
     def getResults(self):
@@ -128,8 +128,6 @@ class SalmonRec():
             resid = resmid - max + i
             if (str(resid) + ".json") in list:
                 continue
-            print(datetime.now().strftime("%H:%M:%S ") +
-                  "Saved " + str(resid))
             url = "https://app.splatoon2.nintendo.net/api/coop_results/" + \
                 str(resid)
             res = requests.get(url, cookies=dict(
@@ -138,10 +136,11 @@ class SalmonRec():
                 sys.argv[0])) + "/json/" + str(resid) + ".json"
             with open(path, mode="w") as f:
                 f.write(res)
+            print(datetime.now().strftime("%H:%M:%S ") +
+                  "Saved " + str(resid))
             # トークンが保存されていたらアップロードする
             if self.token is not "":
                 self.upload(resid)
-            sleep(1)
 
 
 if __name__ == "__main__":
