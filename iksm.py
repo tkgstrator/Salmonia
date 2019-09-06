@@ -122,7 +122,7 @@ def get_cookie(session_token, userLang, ver):
         'Accept-Encoding': 'gzip',
         'Content-Type':    'application/json; charset=utf-8',
         'Accept-Language': 'en-US',
-        'Content-Length':  '437',
+        'Content-Length':  '439',
         'Accept':          'application/json',
         'Connection':      'Keep-Alive',
         'User-Agent':      'OnlineLounge/1.5.2 NASDKAPI Android'
@@ -279,7 +279,7 @@ def get_hash_from_s2s_api(id_token, timestamp):
 
     # proceed normally
     try:
-        api_app_head = {'User-Agent': "splatnet2statink/{}".format(version)}
+        api_app_head = {'User-Agent': "Salmonia/{}".format(version)}
         api_body = {'naIdToken': id_token, 'timestamp': timestamp}
         api_response = requests.post(
             "https://elifessler.com/s2s/api/gen2", headers=api_app_head, data=api_body)

@@ -14,7 +14,7 @@ URL = "https://salmon-stats.yuki.games/"
 
 class SalmonRec():
     def __init__(self):
-        print(datetime.now().strftime("%H:%M:%S ") + "Salmonia version 1.0")
+        print(datetime.now().strftime("%H:%M:%S ") + "Salmonia version 1.0.1")
         print(datetime.now().strftime("%H:%M:%S ") + "Thanks @Yukinkling and @barley_ural!")
         path = os.path.dirname(os.path.abspath(sys.argv[0])) + "/config.json"
         try:
