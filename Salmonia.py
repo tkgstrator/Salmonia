@@ -14,7 +14,7 @@ URL = "https://salmon-stats.yuki.games/"
 
 class SalmonRec():
     def __init__(self):
-        print(datetime.now().strftime("%H:%M:%S ") + "Salmonia version 1.0.1")
+        print(datetime.now().strftime("%H:%M:%S ") + "Salmonia version 1.0.2")
         print(datetime.now().strftime("%H:%M:%S ") + "Thanks @Yukinkling and @barley_ural!")
         path = os.path.dirname(os.path.abspath(sys.argv[0])) + "/config.json"
         try:
@@ -62,6 +62,8 @@ class SalmonRec():
                     self.setConfig()
             else:
                 print(datetime.now().strftime("%H:%M:%S ") + "Unknown error.")
+                message = datetime.now().strftime("%H:%M:%S Unknown error.\n")
+                self.writeLog(message)
                 sys.exit(1)
 
     def setConfig(self, token=""):
@@ -95,6 +97,17 @@ class SalmonRec():
             json.dump(data, f, indent=4)
         self.latest = 0
 
+    def updateConfig(self, resid):
+        with open("config.json", mode="w") as f:
+            data = {
+                "iksm_session": self.cookie,
+                "session_token": self.session,
+                "api-token": self.token,
+                "latest": resid,
+            }
+            json.dump(data, f, indent=4)
+
+
     def upload(self, resid):
         resid = str(resid)
         path = "json/" + resid + ".json"
@@ -106,27 +119,24 @@ class SalmonRec():
         res = requests.post(url, data=json.dumps(result), headers=headers)
 
         if res.status_code == 401:  # 認証エラー
-            print("Api token is invalid.")
+            message = datetime.now().strftime("%H:%M:%S API token is invalid.\n")
+            self.writeLog(message)
             sys.exit()
         if res.status_code == 200:  # 認証成功
             # レスポンスの変換
             text = json.loads(res.text)[0]
             if text["created"] == False:
-                print(datetime.now().strftime("%H:%M:%S ") + resid + " already uploaded!")
-                with open("config.json", mode="w") as f:
-                    data = {
-                        "iksm_session": self.cookie,
-                        "session_token": self.session,
-                        "api-token": self.token,
-                        "latest": int(resid),
-                    }
-                    json.dump(data, f, indent=4)
+                print(datetime.now().strftime("%H:%M:%S ") + resid + " skip.")
             else:
-                print(datetime.now().strftime("%H:%M:%S ") + resid + " uploaded!")
+                print(datetime.now().strftime("%H:%M:%S ") + resid + " upload!")
+            self.updateConfig(int(resid))
         if res.status_code == 500:
-            print(datetime.now().strftime("%H:%M:%S ") + resid + " is not recoginized schedule_id")
+            print(datetime.now().strftime("%H:%M:%S ") + resid + " failure.")
+            message = datetime.now().strftime("%H:%M:%S " + resid + " : unrecoginized schedule id.\n")
+            self.writeLog(message)
+            with open("unupload_list.txt", mode="a") as f:
+                f.write(resid + ".json\n") 
         sleep(5)
-
 
     def uploadAll(self):
         file = []
@@ -139,6 +149,10 @@ class SalmonRec():
             if self.latest < int(resid):
                 self.upload(resid)
 
+    def writeLog(self, message):
+        with open("error.log", mode="a") as f:
+            f.write(message)
+        f.close()
 
     def getResults(self):
         # 最新のリザルトIDを取得する
@@ -160,13 +174,8 @@ class SalmonRec():
                 sys.argv[0])) + "/json/" + str(resid) + ".json"
             with open(path, mode="w") as f:
                 f.write(res)
-            print(datetime.now().strftime("%H:%M:%S ") +
-                  "Saved " + str(resid))
-            # トークンが保存されていたらアップロードする
-            if self.token is not "":
-                self.upload(resid)
-            sleep(1)
-
+            print(datetime.now().strftime("%H:%M:%S ") + "Saved " + str(resid))
+            self.upload(resid)
 
 if __name__ == "__main__":
     user = SalmonRec()
@@ -175,8 +184,6 @@ if __name__ == "__main__":
         print(datetime.now().strftime("%H:%M:%S ") + "Checking your records.")
         user.uploadAll()
     print(datetime.now().strftime("%H:%M:%S ") + "Waiting new records.")
-
     while True:
-        # 最新データを取得した上で、取得した最古のリザルトIDを保存
         user.getResults()
         sleep(10)
