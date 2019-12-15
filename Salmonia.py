@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import requests
 import sys
 import json
@@ -7,78 +8,108 @@ from datetime import datetime
 from time import sleep
 import iksm
 
-
 VERSION = "1.5.2"
 LANG = "en-US"
 URL = "https://salmon-stats.yuki.games/"
 
-class SalmonRec():
+class Param():
     def __init__(self):
-        print(datetime.now().strftime("%H:%M:%S ") + "Salmonia version 1.0.2")
+        self.splatnet2 = 0
+        self.local = 0
+
+    def setup(self, iksm_session, session_token, api_token, salmonstats=0):
+        self.iksm_session = iksm_session
+        self.session_token = session_token
+        self.api_token = api_token
+        self.salmonstats = salmonstats
+
+    def output(self):
+        with open("config.json", mode="w") as f:
+            data = {
+                "iksm_session": self.iksm_session,
+                "session_token": self.session_token,
+                "api-token": self.api_token,
+                "job_id": {
+                    "splatnet2": self.splatnet2,
+                    "salmonstats": self.salmonstats,
+                    "local": self.local,
+                }
+            }
+            json.dump(data, f, indent=4)
+
+class SalmonRec():
+    def __init__(self): # Initialize
+        print(datetime.now().strftime("%H:%M:%S ") + "Salmonia version 1.0.4")
         print(datetime.now().strftime("%H:%M:%S ") + "Thanks @Yukinkling and @barley_ural!")
+        print(datetime.now().strftime("%H:%M:%S ") + "Thank you for users")
         path = os.path.dirname(os.path.abspath(sys.argv[0])) + "/config.json"
+        self.param = Param() # Setup Parameters
+        
         try:
-            with open(path) as f:
+            with open(path) as f: # Exist
                 try:
                     df = json.load(f)
-                    self.cookie = df["iksm_session"]
-                    self.session = df["session_token"]
-                    self.token = df["api-token"]
-                    self.latest = df["latest"]
+                    self.param.setup(df["iksm_session"], df["session_token"], df["api-token"], df["job_id"]["salmonstats"])
                 except json.decoder.JSONDecodeError:
                     print(datetime.now().strftime("%H:%M:%S ") + "config.json is broken.")
                     print(datetime.now().strftime("%H:%M:%S ") + "Regenerate config.json.")
-                    self.setConfig()
-        except FileNotFoundError:
+        except FileNotFoundError: # None
             print(datetime.now().strftime("%H:%M:%S ") + "config.json is not found.")
             self.setConfig()
-
-        dir = os.listdir()
-        if "json" not in dir: # ディレクトリがなければ作成
+        
+        dir = os.listdir() # Directory Checking
+        if "json" not in dir: 
             print(datetime.now().strftime("%H:%M:%S ") + "Make directory...")
             os.mkdir("json")
+        else:
+            file = []
+            dir = os.listdir("json")
+            for p in dir:
+                file.append(p[0:-5])
+            file.sort(key=int, reverse=True)
+            try:
+                self.param.local = int(file[0]) # Latest Job_Id on Local
+            except IndexError:
+                self.param.local = 0
 
+        # Checking iksm_session Validation
         url = "https://app.splatoon2.nintendo.net"
         print(datetime.now().strftime("%H:%M:%S ") + "Checking iksm_session's validation.")
-        res = requests.get(url, cookies=dict(iksm_session=self.cookie))
+        res = requests.get(url, cookies=dict(iksm_session=self.param.iksm_session))
         if res.status_code == 200:
             print(datetime.now().strftime("%H:%M:%S ") + "Your iksm_session is valid.")
         if res.status_code == 403:
             if res.text == "Forbidden":
                 print(datetime.now().strftime("%H:%M:%S ") + "Your iksm_session is expired.")
-                if self.session != "":
+                if self.param.session_token != "":
                     print(datetime.now().strftime("%H:%M:%S ") + "Regenerate iksm_session.")
                     # Regenerate iksm_session with session_token
-                    self.cookie = iksm.get_cookie(self.session, LANG, VERSION)
-                    with open("config.json", mode="w") as f:
-                        data = {
-                            "iksm_session": self.cookie,
-                            "session_token": self.session,
-                            "api-token": self.token,
-                            "latest": self.latest,
-                        }
-                        json.dump(data, f, indent=4)
-                else:
-                    self.setConfig()
+                    self.param.iksm_session = iksm.get_cookie(self.param.session_token, LANG, VERSION)
             else:
                 print(datetime.now().strftime("%H:%M:%S ") + "Unknown error.")
                 message = datetime.now().strftime("%H:%M:%S Unknown error.\n")
                 self.writeLog(message)
                 sys.exit(1)
+        
+        url = "https://app.splatoon2.nintendo.net/api/coop_results"
+        # print(datetime.now().strftime("%H:%M:%S ") + "Getting latest job id from SplatNet2.")
+        res = requests.get(url, cookies=dict(iksm_session=self.param.iksm_session)).json()
+        self.param.splatnet2 = int(res["summary"]["card"]["job_num"])
+        self.param.output()
 
-    def setConfig(self, token=""):
-        self.session = iksm.log_in(VERSION)
-        self.cookie = iksm.get_cookie(self.session, LANG, VERSION)
+    def setConfig(self):
+        session_token = iksm.log_in(VERSION)
+        iksm_session = iksm.get_cookie(session_token, LANG, VERSION)
         webbrowser.open(URL)
         print(datetime.now().strftime("%H:%M:%S ") + "Login and Paste API token.")
-        while True:
+        while True: # Waiting Input session_token & api-token
             try:
                 token = input("")
-                if len(token) == 64:
+                if len(token) == 64: # Simple Validation of api-token length
                     try:
-                        int(token, 16)
+                        int(token, 16) # Convert to Hex
                         print(datetime.now().strftime("%H:%M:%S ") + "Valid token.")
-                        self.token = token
+                        api_token = token
                         break
                     except ValueError:
                         print(datetime.now().strftime("%H:%M:%S ") + "Paste API token again.")
@@ -87,26 +118,13 @@ class SalmonRec():
             except KeyboardInterrupt:
                 print("\nBye!")
                 sys.exit(1)
-        with open("config.json", mode="w") as f:
-            data = {
-                "iksm_session": self.cookie,
-                "session_token": self.session,
-                "api-token": self.token,
-                "latest": 0,
-            }
-            json.dump(data, f, indent=4)
-        self.latest = 0
+        self.param.setup(iksm_session, session_token, api_token)
 
-    def updateConfig(self, resid):
-        with open("config.json", mode="w") as f:
-            data = {
-                "iksm_session": self.cookie,
-                "session_token": self.session,
-                "api-token": self.token,
-                "latest": resid,
-            }
-            json.dump(data, f, indent=4)
-
+    def getJobId(self):
+        url = "https://app.splatoon2.nintendo.net/api/coop_results"
+        # print(datetime.now().strftime("%H:%M:%S ") + "Getting latest job id from SplatNet2.")
+        res = requests.get(url, cookies=dict(iksm_session=self.param.iksm_session)).json()
+        return int(res["summary"]["card"]["job_num"])
 
     def upload(self, resid):
         resid = str(resid)
@@ -115,7 +133,7 @@ class SalmonRec():
         result = {"results": [file]}
         url = "https://salmon-stats-api.yuki.games/api/results"
         headers = {"Content-type": "application/json",
-                   "Authorization": "Bearer " + self.token}
+                   "Authorization": "Bearer " + self.param.api_token}
         res = requests.post(url, data=json.dumps(result), headers=headers)
 
         if res.status_code == 401:  # 認証エラー
@@ -129,7 +147,6 @@ class SalmonRec():
                 print(datetime.now().strftime("%H:%M:%S ") + resid + " skip.")
             else:
                 print(datetime.now().strftime("%H:%M:%S ") + resid + " upload!")
-            self.updateConfig(int(resid))
         if res.status_code == 500:
             print(datetime.now().strftime("%H:%M:%S ") + resid + " failure.")
             message = datetime.now().strftime("%H:%M:%S " + resid + " : unrecoginized schedule id.\n")
@@ -138,52 +155,76 @@ class SalmonRec():
                 f.write(resid + ".json\n") 
         sleep(5)
 
-    def uploadAll(self):
-        file = []
-        dir = os.listdir("json")
-        # ファイル名をソーティング
-        for p in dir:
-            file.append(p[0:-5])
-        file.sort(key=int)
-        for resid in file:
-            if self.latest < int(resid):
-                self.upload(resid)
-
     def writeLog(self, message):
         with open("error.log", mode="a") as f:
             f.write(message)
         f.close()
 
-    def getResults(self):
-        # 最新のリザルトIDを取得する
-        url = "https://app.splatoon2.nintendo.net/api/coop_results"
-        res = requests.get(url, cookies=dict(iksm_session=self.cookie)).json()
-        resmid = int(res["summary"]["card"]["job_num"])
-        max = 50 if resmid >= 50 else resmid
+    def uploadAll(self):
+        file = []
+        dir = os.listdir("json")
+        for p in dir:
+            file.append(p[0:-5])
+        file.sort(key=int)
+        
+        results = [] # Initialize
+        headers = {"Content-type": "application/json", "Authorization": "Bearer " + self.param.api_token}
+        
+        url = "https://salmon-stats-api.yuki.games/api/results"
+        for job_id in file:
+            if self.param.salmonstats < int(job_id):
+                path = "json/" + job_id + ".json"
+                results += [json.load(open(path, "r"))]
+                if len(results) % 10 == 0:
+                    res = requests.post(url, data=json.dumps({"results": results}), headers=headers)
+                    results = []
+                    if res.status_code == 200:
+                        res = json.loads(res.text)
+                        for r in res:
+                            if r["created"] == False:
+                                print(datetime.now().strftime("%H:%M:%S ") + str(r["job_id"]) + " skip.")
+                            else:
+                                print(datetime.now().strftime("%H:%M:%S ") + str(r["job_id"]) + " upload!.")
+                    sleep(5)
 
-        list = os.listdir("json")
-        for i in range(1, max + 1):
-            resid = resmid - max + i
-            if (str(resid) + ".json") in list:
-                continue
+        # Remind Upload
+        res = requests.post(url, data=json.dumps({"results": results}), headers=headers)
+        if res.status_code == 200:
+            res = json.loads(res.text)
+            for r in res:
+                if r["created"] == False:
+                    print(datetime.now().strftime("%H:%M:%S ") + str(r["job_id"]) + " skip.")
+                else:
+                    print(datetime.now().strftime("%H:%M:%S ") + str(r["job_id"]) + " upload!.")
+        self.param.salmonstats = int(job_id)
+        self.param.output()
+
+    def getResults(self):
+        self.param.splatnet2 = self.getJobId() 
+        count = self.param.splatnet2 - 49 if self.param.splatnet2 - 50 >  self.param.local else self.param.local + 1
+        if self.param.local == self.param.splatnet2:
+            return
+        for job_id in range(count, self.param.splatnet2 + 1):
             url = "https://app.splatoon2.nintendo.net/api/coop_results/" + \
-                str(resid)
+                str(job_id)
             res = requests.get(url, cookies=dict(
-                iksm_session=self.cookie)).text
+                iksm_session=self.param.iksm_session)).text
             path = os.path.dirname(os.path.abspath(
-                sys.argv[0])) + "/json/" + str(resid) + ".json"
+                sys.argv[0])) + "/json/" + str(job_id) + ".json"
             with open(path, mode="w") as f:
                 f.write(res)
-            print(datetime.now().strftime("%H:%M:%S ") + "Saved " + str(resid))
-            self.upload(resid)
+            print(datetime.now().strftime("%H:%M:%S ") + "Saved " + str(job_id) + " from SplatNet2.")
+            
+            # Upload Result to SalmonStats
+            if job_id > self.param.salmonstats:
+                self.param.local = job_id
+                self.upload(job_id)
+            self.param.output()
 
 if __name__ == "__main__":
     user = SalmonRec()
-    # 保存済みデータのアップロード
-    if user.token is not "":
-        print(datetime.now().strftime("%H:%M:%S ") + "Checking your records.")
-        user.uploadAll()
-    print(datetime.now().strftime("%H:%M:%S ") + "Waiting new records.")
+    user.uploadAll()
+
     while True:
         user.getResults()
         sleep(10)
