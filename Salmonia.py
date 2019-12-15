@@ -153,7 +153,6 @@ class SalmonRec():
             self.writeLog(message)
             with open("unupload_list.txt", mode="a") as f:
                 f.write(resid + ".json\n") 
-        sleep(5)
 
     def writeLog(self, message):
         with open("error.log", mode="a") as f:
@@ -185,7 +184,7 @@ class SalmonRec():
                                 print(datetime.now().strftime("%H:%M:%S ") + str(r["job_id"]) + " skip.")
                             else:
                                 print(datetime.now().strftime("%H:%M:%S ") + str(r["job_id"]) + " upload!.")
-                            self.param.salmonstats = res["job_id"]
+                            self.param.salmonstats = r["job_id"]
                             self.param.output()
                     sleep(5)
         # Remind Upload
@@ -197,7 +196,7 @@ class SalmonRec():
                     print(datetime.now().strftime("%H:%M:%S ") + str(r["job_id"]) + " skip.")
                 else:
                     print(datetime.now().strftime("%H:%M:%S ") + str(r["job_id"]) + " upload!.")
-                self.param.salmonstats = res["job_id"]
+                self.param.salmonstats = r["job_id"]
                 self.param.output()
 
     def getResults(self):
@@ -225,6 +224,8 @@ class SalmonRec():
 if __name__ == "__main__":
     user = SalmonRec()
     user.uploadAll()
+    
+    print(datetime.now().strftime("%H:%M:%S ") + "Waiting New Result.")
 
     while True:
         user.getResults()
