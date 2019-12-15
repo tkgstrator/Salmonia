@@ -185,6 +185,8 @@ class SalmonRec():
                                 print(datetime.now().strftime("%H:%M:%S ") + str(r["job_id"]) + " skip.")
                             else:
                                 print(datetime.now().strftime("%H:%M:%S ") + str(r["job_id"]) + " upload!.")
+                            self.param.salmonstats = res["job_id"]
+                            self.param.output()
                     sleep(5)
         # Remind Upload
         res = requests.post(url, data=json.dumps({"results": results}), headers=headers)
@@ -195,8 +197,8 @@ class SalmonRec():
                     print(datetime.now().strftime("%H:%M:%S ") + str(r["job_id"]) + " skip.")
                 else:
                     print(datetime.now().strftime("%H:%M:%S ") + str(r["job_id"]) + " upload!.")
-            self.param.salmonstats = r["job_id"]
-            self.param.output()
+                self.param.salmonstats = res["job_id"]
+                self.param.output()
 
     def getResults(self):
         self.param.splatnet2 = self.getJobId() 
