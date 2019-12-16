@@ -8,7 +8,7 @@ from datetime import datetime
 from time import sleep
 import iksm
 
-VERSION = "1.5.2"
+VERSION = "1.0.5"
 LANG = "en-US"
 URL = "https://salmon-stats.yuki.games/"
 
@@ -39,7 +39,7 @@ class Param():
 
 class SalmonRec():
     def __init__(self): # Initialize
-        print(datetime.now().strftime("%H:%M:%S ") + "Salmonia version 1.0.4")
+        print(datetime.now().strftime("%H:%M:%S ") + "Salmonia version " + VERSION)
         print(datetime.now().strftime("%H:%M:%S ") + "Thanks @Yukinkling and @barley_ural!")
         print(datetime.now().strftime("%H:%M:%S ") + "Thank you for users")
         path = os.path.dirname(os.path.abspath(sys.argv[0])) + "/config.json"
