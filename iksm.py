@@ -266,7 +266,7 @@ def get_cookie(session_token, userLang, ver):
 def get_hash_from_s2s_api(id_token, timestamp):
     '''Passes an id_token and timestamp to the s2s API and fetches the resultant hash from the response.'''
 
-    f = open("config.json", mode="w")
+    f = open("config.json", mode="r+")
     config_data = json.load(f)
     try:
         num_errors = config_data["api_errors"]
@@ -286,6 +286,7 @@ def get_hash_from_s2s_api(id_token, timestamp):
     except:
         print("Error from the splatnet2statink API:\n{}".format(json.dumps(json.loads(api_response.text), indent=2)))
         config_data["api_errors"] += 1
+        f.truncate(0)
         json.dump(config_data, f, indent=4)
         sys.exit(1)
 
