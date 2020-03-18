@@ -2,18 +2,9 @@
 # clovervidia
 from __future__ import print_function
 from builtins import input
-import requests
-import json
-import re
-import sys
-import os
-import base64
-import hashlib
-import uuid
-import time
-import random
-import string
-import webbrowser
+import requests, json, re, sys
+import os, base64, hashlib
+import uuid, time, random, string, webbrowser
 
 session = requests.Session()
 version = "unknown"
@@ -24,7 +15,6 @@ if getattr(sys, 'frozen', False):
 elif __file__:
     app_path = os.path.dirname(__file__)
 config_path = os.path.join(app_path, "config.txt")
-
 
 def log_in(ver):
     '''Logs in to a Nintendo Account and returns a session_token.'''
@@ -66,7 +56,7 @@ def log_in(ver):
 
     post_login = r.history[0].url
 
-    print("Log in, right click the \"Select this person\" button, copy the link address, and paste it below:")
+    print("Log in, right click the \"Select this account\" button, copy the link address, and paste it below:")
     webbrowser.open(post_login)
     while True:
         try:
@@ -78,16 +68,18 @@ def log_in(ver):
         except KeyboardInterrupt:
             print("\nBye!")
             sys.exit(1)
-        except:
+        except AttributeError:
             print("Malformed URL. Please try again, or press Ctrl+C to exit.")
             print("URL:", end=' ')
-
+        except KeyError: # session_token not found
+            print("\nThe URL has expired. Please log out and back into your Nintendo Account and try again.")
+            sys.exit(1)
 
 def get_session_token(session_token_code, auth_code_verifier):
     '''Helper function for log_in().'''
 
     app_head = {
-        'User-Agent':      'OnlineLounge/1.5.2 NASDKAPI Android',
+        'User-Agent':      'OnlineLounge/1.6.1.2 NASDKAPI Android',
         'Accept-Language': 'en-US',
         'Accept':          'application/json',
         'Content-Type':    'application/x-www-form-urlencoded',
@@ -106,10 +98,11 @@ def get_session_token(session_token_code, auth_code_verifier):
     url = 'https://accounts.nintendo.com/connect/1.0.0/api/session_token'
 
     r = session.post(url, headers=app_head, data=body)
+    print(r.text)
     return json.loads(r.text)["session_token"]
 
-
 def get_cookie(session_token, userLang, ver):
+    '''Returns a new cookie provided the session_token.'''
 
     global version
     version = ver
@@ -121,15 +114,15 @@ def get_cookie(session_token, userLang, ver):
         'Host':            'accounts.nintendo.com',
         'Accept-Encoding': 'gzip',
         'Content-Type':    'application/json; charset=utf-8',
-        'Accept-Language': 'en-US',
+        'Accept-Language': userLang,
         'Content-Length':  '439',
         'Accept':          'application/json',
         'Connection':      'Keep-Alive',
-        'User-Agent':      'OnlineLounge/1.5.2 NASDKAPI Android'
+        'User-Agent':      'OnlineLounge/1.6.1.2 NASDKAPI Android'
     }
 
     body = {
-        'client_id':     '71b963c1b7b6d119',  # Splatoon 2 service
+        'client_id':     '71b963c1b7b6d119', # Splatoon 2 service
         'session_token': session_token,
         'grant_type':    'urn:ietf:params:oauth:grant-type:jwt-bearer-session-token'
     }
@@ -142,8 +135,8 @@ def get_cookie(session_token, userLang, ver):
     # get user info
     try:
         app_head = {
-            'User-Agent':      'OnlineLounge/1.5.2 NASDKAPI Android',
-            'Accept-Language': 'en-US',
+            'User-Agent':      'OnlineLounge/1.6.1.2 NASDKAPI Android',
+            'Accept-Language': userLang,
             'Accept':          'application/json',
             'Authorization':   'Bearer {}'.format(id_response["access_token"]),
             'Host':            'api.accounts.nintendo.com',
@@ -160,31 +153,26 @@ def get_cookie(session_token, userLang, ver):
     r = requests.get(url, headers=app_head)
     user_info = json.loads(r.text)
 
-    # nickname = user_info["nickname"]
-
     # get access token
     app_head = {
         'Host':             'api-lp1.znc.srv.nintendo.net',
-        'Accept-Language':  'en-us',
-        'User-Agent':       'com.nintendo.znca/1.5.2 (Android/7.1.2)',
+        'Accept-Language':  userLang,
+        'User-Agent':       'com.nintendo.znca/1.6.1.2 (Android/7.1.2)',
         'Accept':           'application/json',
-        'X-ProductVersion': '1.5.2',
+        'X-ProductVersion': '1.6.1.2',
         'Content-Type':     'application/json; charset=utf-8',
         'Connection':       'Keep-Alive',
         'Authorization':    'Bearer',
-        'Content-Length':   '1036',
+        # 'Content-Length':   '1036',
         'X-Platform':       'Android',
         'Accept-Encoding':  'gzip'
     }
 
     body = {}
-
     try:
-        idToken = id_response["id_token"]
+        idToken = id_response["access_token"]
 
-        flapg_response = call_flapg_api(idToken, guid, timestamp)
-        flapg_nso = flapg_response["login_nso"]
-        flapg_app = flapg_response["login_app"]
+        flapg_nso = call_flapg_api(idToken, guid, timestamp, "nso")
 
         parameter = {
             'f':          flapg_nso["f"],
@@ -207,16 +195,23 @@ def get_cookie(session_token, userLang, ver):
     url = "https://api-lp1.znc.srv.nintendo.net/v1/Account/Login"
 
     r = requests.post(url, headers=app_head, json=body)
-
     splatoon_token = json.loads(r.text)
+
+    try:
+        idToken = splatoon_token["result"]["webApiServerCredential"]["accessToken"]
+        flapg_app = call_flapg_api(idToken, guid, timestamp, "app")
+    except:
+        print("Error from Nintendo (in Account/Login step):")
+        print(json.dumps(splatoon_token, indent=2))
+        sys.exit(1)
 
     # get splatoon access token
     try:
         app_head = {
             'Host':             'api-lp1.znc.srv.nintendo.net',
-            'User-Agent':       'com.nintendo.znca/1.5.2 (Android/7.1.2)',
+            'User-Agent':       'com.nintendo.znca/1.6.1.2 (Android/7.1.2)',
             'Accept':           'application/json',
-            'X-ProductVersion': '1.5.2',
+            'X-ProductVersion': '1.6.1.2',
             'Content-Type':     'application/json; charset=utf-8',
             'Connection':       'Keep-Alive',
             'Authorization':    'Bearer {}'.format(splatoon_token["result"]["webApiServerCredential"]["accessToken"]),
@@ -252,7 +247,7 @@ def get_cookie(session_token, userLang, ver):
             'Accept':                  'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Encoding':         'gzip,deflate',
             'X-GameWebToken':          splatoon_access_token["result"]["accessToken"],
-            'Accept-Language':         'en-US',
+            'Accept-Language':         userLang,
             'X-IsAnalyticsOptedIn':    'false',
             'Connection':              'keep-alive',
             'DNT':                     '0',
@@ -268,68 +263,63 @@ def get_cookie(session_token, userLang, ver):
     r = requests.get(url, headers=app_head)
     return r.cookies["iksm_session"]
 
-
 def get_hash_from_s2s_api(id_token, timestamp):
     '''Passes an id_token and timestamp to the s2s API and fetches the resultant hash from the response.'''
 
-    # check to make sure we're allowed to contact the API. stop spamming my web server pls
-    # config_file = open(config_path, "r")
-    # config_data = json.load(config_file)
-    # config_file.close()
+    f = open("config.json", mode="w")
+    config_data = json.load(f)
+    try:
+        num_errors = config_data["api_errors"]
+    except:
+        num_errors = 0
+
+    if num_errors >= 5:
+        print("Too many errors received from the splatnet2statink API. Further requests have been blocked until the \"api_errors\" line is manually removed from config.txt. If this issue persists, please contact @frozenpandaman on Twitter/GitHub for assistance.")
+        sys.exit(1)
 
     # proceed normally
     try:
-        api_app_head = {'User-Agent': "Salmonia/{}".format(version)}
-        api_body = {'naIdToken': id_token, 'timestamp': timestamp}
-        api_response = requests.post(
-            "https://elifessler.com/s2s/api/gen2", headers=api_app_head, data=api_body)
+        api_app_head = { 'User-Agent': "Salmonia/{}".format(version) }
+        api_body = { 'naIdToken': id_token, 'timestamp': timestamp }
+        api_response = requests.post("https://elifessler.com/s2s/api/gen2", headers=api_app_head, data=api_body)
         return json.loads(api_response.text)["hash"]
     except:
-        print("Error from the splatnet2statink API:\n{}".format(
-            json.dumps(json.loads(api_response.text), indent=2)))
-
-        # add 1 to api_errors in config
-        config_file = open(config_path, "r")
-        config_data = json.load(config_file)
-        config_file.close()
-        try:
-            num_errors = config_data["api_errors"]
-        except:
-            num_errors = 0
-        num_errors += 1
-        config_data["api_errors"] = num_errors
-
-        config_file = open(config_path, "w")  # from write_config()
-        config_file.seek(0)
-        config_file.write(json.dumps(config_data, indent=4,
-                                     sort_keys=True, separators=(',', ': ')))
-        config_file.close()
+        print("Error from the splatnet2statink API:\n{}".format(json.dumps(json.loads(api_response.text), indent=2)))
+        config_data["api_errors"] += 1
+        json.dump(config_data, f, indent=4)
         sys.exit(1)
 
-
-def call_flapg_api(id_token, guid, timestamp):
+def call_flapg_api(id_token, guid, timestamp, type):
     '''Passes in headers to the flapg API (Android emulator) and fetches the response.'''
 
-    api_app_head = {
-        'x-token': id_token,
-        'x-time':  str(timestamp),
-        'x-guid':  guid,
-        'x-hash':  get_hash_from_s2s_api(id_token, timestamp),
-        'x-ver':   '2',
-        'x-iid':   ''.join([random.choice(string.ascii_letters + string.digits) for n in range(8)])
-    }
-    api_response = requests.get(
-        "https://flapg.com/ika2/api/login", headers=api_app_head)
-    f = json.loads(api_response.text)
-    return f
-
+    try:
+        api_app_head = {
+            'x-token': id_token,
+            'x-time':  str(timestamp),
+            'x-guid':  guid,
+            'x-hash':  get_hash_from_s2s_api(id_token, timestamp),
+            'x-ver':   '3',
+            'x-iid':   type
+        }
+        api_response = requests.get("https://flapg.com/ika2/api/login?public", headers=api_app_head)
+        f = json.loads(api_response.text)["result"]
+        return f
+    except:
+        try: # if api_response never gets set
+            if api_response.text:
+                print(u"Error from the flapg API:\n{}".format(json.dumps(json.loads(api_response.text), indent=2, ensure_ascii=False)))
+            elif api_response.status_code == requests.codes.not_found:
+                print("Error from the flapg API: Error 404 (offline or incorrect headers).")
+            else:
+                print("Error from the flapg API: Error {}.".format(api_response.status_code))
+        except:
+            pass
+        sys.exit(1)
 
 def enter_cookie():
     '''Prompts the user to enter their iksm_session cookie'''
 
-    new_cookie = input(
-        "Go to the page below to find instructions to obtain your iksm_session cookie:\nhttps://github.com/frozenpandaman/splatnet2statink/wiki/mitmproxy-instructions\nEnter it here: ")
+    new_cookie = input("Go to the page below to find instructions to obtain your iksm_session cookie:\nhttps://github.com/frozenpandaman/splatnet2statink/wiki/mitmproxy-instructions\nEnter it here: ")
     while len(new_cookie) != 40:
-        new_cookie = input(
-            "Cookie is invalid. Please enter it again.\nCookie: ")
+        new_cookie = input("Cookie is invalid. Please enter it again.\nCookie: ")
     return new_cookie
