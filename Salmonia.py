@@ -44,7 +44,7 @@ class SalmonRec():
         print(datetime.now().strftime("%H:%M:%S ") + "Thanks @Yukinkling and @barley_ural!")
         path = os.path.dirname(os.path.abspath(sys.argv[0])) + "/config.json"
         self.param = Param() # Setup Parameters
-        
+
         try:
             with open(path) as f: # Exist
                 try:
@@ -56,9 +56,9 @@ class SalmonRec():
         except FileNotFoundError: # None
             print(datetime.now().strftime("%H:%M:%S ") + "config.json is not found.")
             self.setConfig()
-        
+
         dir = os.listdir() # Directory Checking
-        if "json" not in dir: 
+        if "json" not in dir:
             print(datetime.now().strftime("%H:%M:%S ") + "Make directory...")
             os.mkdir("json")
         else:
@@ -90,7 +90,7 @@ class SalmonRec():
                 message = datetime.now().strftime("%H:%M:%S Unknown error.\n")
                 self.writeLog(message)
                 sys.exit(1)
-        
+
         url = "https://app.splatoon2.nintendo.net/api/coop_results"
         # print(datetime.now().strftime("%H:%M:%S ") + "Getting latest job id from SplatNet2.")
         res = requests.get(url, cookies=dict(iksm_session=self.param.iksm_session)).json()
@@ -153,7 +153,7 @@ class SalmonRec():
             message = datetime.now().strftime("%H:%M:%S " + resid + " : unrecoginized schedule id.\n")
             self.writeLog(message)
             with open("unupload_list.txt", mode="a") as f:
-                f.write(resid + ".json\n") 
+                f.write(resid + ".json\n")
 
     def writeLog(self, message):
         with open("error.log", mode="a") as f:
@@ -166,10 +166,10 @@ class SalmonRec():
         for p in dir:
             file.append(p[0:-5])
         file.sort(key=int)
-        
+
         results = [] # Initialize
         headers = {"Content-type": "application/json", "Authorization": "Bearer " + self.param.api_token}
-        
+
         url = "https://salmon-stats-api.yuki.games/api/results"
         for job_id in file:
             if self.param.salmonstats < int(job_id):
@@ -201,7 +201,7 @@ class SalmonRec():
                 self.param.output()
 
     def getResults(self):
-        self.param.splatnet2 = self.getJobId() 
+        self.param.splatnet2 = self.getJobId()
         count = self.param.splatnet2 - 49 if self.param.splatnet2 - 50 >  self.param.local else self.param.local + 1
         if self.param.local == self.param.splatnet2:
             return
@@ -215,7 +215,7 @@ class SalmonRec():
             with open(path, mode="w") as f:
                 f.write(res)
             print(datetime.now().strftime("%H:%M:%S ") + "Saved " + str(job_id) + " from SplatNet2.")
-            
+
             # Upload Result to SalmonStats
             if job_id > self.param.salmonstats:
                 self.param.local = job_id
@@ -225,7 +225,7 @@ class SalmonRec():
 if __name__ == "__main__":
     user = SalmonRec()
     user.uploadAll()
-    
+
     print(datetime.now().strftime("%H:%M:%S ") + "Waiting New Result.")
 
     while True:
