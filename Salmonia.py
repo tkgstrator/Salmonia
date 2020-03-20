@@ -17,11 +17,13 @@ class Param():
         self.splatnet2 = 0
         self.local = 0
 
-    def setup(self, iksm_session, session_token, api_token, salmonstats=0):
+    def setup(self, iksm_session="", session_token="", api_token="", salmonstats=0, api_errors=0):
         self.iksm_session = iksm_session
         self.session_token = session_token
         self.api_token = api_token
         self.salmonstats = salmonstats
+        self.api_errors = api_errors
+        self.output()
 
     def output(self):
         with open("config.json", mode="w") as f:
@@ -49,12 +51,13 @@ class SalmonRec():
             with open(path) as f: # Exist
                 try:
                     df = json.load(f)
-                    self.param.setup(df["iksm_session"], df["session_token"], df["api-token"], df["job_id"]["salmonstats"])
+                    self.param.setup(df["iksm_session"], df["session_token"], df["api-token"], df["job_id"]["salmonstats"], df["api_errors"])
                 except json.decoder.JSONDecodeError:
                     print(datetime.now().strftime("%H:%M:%S ") + "config.json is broken.")
                     print(datetime.now().strftime("%H:%M:%S ") + "Regenerate config.json.")
         except FileNotFoundError: # None
             print(datetime.now().strftime("%H:%M:%S ") + "config.json is not found.")
+            self.param.setup() # Generate temporary config.json
             self.setConfig()
 
         dir = os.listdir() # Directory Checking
@@ -99,7 +102,7 @@ class SalmonRec():
 
     def setConfig(self):
         session_token = iksm.log_in(VERSION)
-        print(session_token)
+        
         iksm_session = iksm.get_cookie(session_token, LANG, VERSION)
         webbrowser.open(URL)
         print(datetime.now().strftime("%H:%M:%S ") + "Login and Paste API token.")
