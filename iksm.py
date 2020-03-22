@@ -203,7 +203,6 @@ def get_cookie(session_token, userLang, ver):
     except:
         print("Error from Nintendo (in Account/Login step):")
         print(json.dumps(splatoon_token, indent=2))
-        sys.exit(1)
 
     # get splatoon access token
     try:
@@ -222,7 +221,6 @@ def get_cookie(session_token, userLang, ver):
     except:
         print("Error from Nintendo (in Account/Login step):")
         print(json.dumps(splatoon_token, indent=2))
-        sys.exit(1)
 
     body = {}
     parameter = {
@@ -257,21 +255,20 @@ def get_cookie(session_token, userLang, ver):
     except:
         print("Error from Nintendo (in Game/GetWebServiceToken step):")
         print(json.dumps(splatoon_access_token, indent=2))
-        sys.exit(1)
 
-    url = "https://app.splatoon2.nintendo.net/?lang={}".format(userLang)
+    url = "https://app.splatoon2.nintendo.net"
     r = requests.get(url, headers=app_head)
     return r.cookies["iksm_session"]
 
 def get_hash_from_s2s_api(id_token, timestamp):
     '''Passes an id_token and timestamp to the s2s API and fetches the resultant hash from the response.'''
 
-    f = open("config.json", mode="r+")
+    f = open("config.json", mode="r")
     config_data = json.load(f)
     try:
         num_errors = config_data["api_errors"]
     except:
-        num_errors = 0
+        sys.exit(1)
 
     if num_errors >= 5:
         print("Too many errors received from the splatnet2statink API. Further requests have been blocked until the \"api_errors\" line is manually removed from config.txt. If this issue persists, please contact @frozenpandaman on Twitter/GitHub for assistance.")
@@ -285,9 +282,7 @@ def get_hash_from_s2s_api(id_token, timestamp):
         return json.loads(api_response.text)["hash"]
     except:
         print("Error from the splatnet2statink API:\n{}".format(json.dumps(json.loads(api_response.text), indent=2)))
-        config_data["api_errors"] += 1
         f.truncate(0)
-        json.dump(config_data, f, indent=4)
         sys.exit(1)
 
 def call_flapg_api(id_token, guid, timestamp, type):
@@ -315,7 +310,6 @@ def call_flapg_api(id_token, guid, timestamp, type):
                 print("Error from the flapg API: Error {}.".format(api_response.status_code))
         except:
             pass
-        sys.exit(1)
 
 def enter_cookie():
     '''Prompts the user to enter their iksm_session cookie'''
