@@ -36,7 +36,7 @@ class Param():
                     "salmonstats": self.salmonstats,
                     "local": self.local,
                 },
-                "api_errors": 0
+                "api_errors": self.api_errors
             }
             json.dump(data, f, indent=4)
 
@@ -87,7 +87,14 @@ class SalmonRec():
                 if self.param.session_token != "":
                     print(datetime.now().strftime("%H:%M:%S ") + "Regenerate iksm_session.")
                     # Regenerate iksm_session with session_token
-                    self.param.iksm_session = iksm.get_cookie(self.param.session_token, LANG, VERSION)
+                    try:
+                        self.param.iksm_session = iksm.get_cookie(self.param.session_token, LANG, VERSION)
+                        self.param.api_errors = 0
+                        print(datetime.now().strftime("%H:%M:%S ") + "Done.")
+                    except:
+                        self.param.api_errors += 1
+                        self.param.output()
+                        sys.exit(1)
             else:
                 print(datetime.now().strftime("%H:%M:%S ") + "Unknown error.")
                 message = datetime.now().strftime("%H:%M:%S Unknown error.\n")
@@ -148,12 +155,12 @@ class SalmonRec():
             # レスポンスの変換
             text = json.loads(res.text)[0]
             if text["created"] == False:
-                print(datetime.now().strftime("%H:%M:%S ") + resid + " skip.")
+                print(datetime.now().strftime("%H:%M:%S Result ID:") + resid + " skip.")
             else:
-                print(datetime.now().strftime("%H:%M:%S ") + resid + " upload!")
+                print(datetime.now().strftime("%H:%M:%S Result ID:") + resid + " upload!")
         if res.status_code == 500:
-            print(datetime.now().strftime("%H:%M:%S ") + resid + " failure.")
-            message = datetime.now().strftime("%H:%M:%S " + resid + " : unrecoginized schedule id.\n")
+            print(datetime.now().strftime("%H:%M:%S Result ID:") + resid + " failure.")
+            message = datetime.now().strftime("%H:%M:%S Result ID:" + resid + " : unrecoginized schedule id.\n")
             self.writeLog(message)
             with open("unupload_list.txt", mode="a") as f:
                 f.write(resid + ".json\n")
