@@ -8,7 +8,7 @@ from datetime import datetime
 from time import sleep
 import iksm
 
-VERSION = "1.0.6"
+VERSION = "1.0.7"
 LANG = "en-US"
 URL = "https://salmon-stats.yuki.games/"
 
