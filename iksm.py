@@ -1,6 +1,5 @@
 # eli fessler
 # clovervidia
-from __future__ import print_function
 from builtins import input
 import requests, json, re, sys
 import os, base64, hashlib
