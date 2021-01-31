@@ -315,5 +315,5 @@ def enter_cookie():
 
     new_cookie = input("Go to the page below to find instructions to obtain your iksm_session cookie:\nhttps://github.com/frozenpandaman/splatnet2statink/wiki/mitmproxy-instructions\nEnter it here: ")
     while len(new_cookie) != 40:
-        newcookie = input("Cookie is invalid. Please enter it again.\nCookie: ")
+        new_cookie = input("Cookie is invalid. Please enter it again.\nCookie: ")
     return new_cookie
