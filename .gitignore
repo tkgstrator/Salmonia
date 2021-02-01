@@ -1,4 +1,9 @@
-__pycache__
+*.spec
+.DS_Store
 .git
+.vscode
+__pycache__
+build
 config.json
+dist
 json
