@@ -1,13 +1,10 @@
-# eli fessler
+# eli fessler dedicated tkgling
 # clovervidia
 from builtins import input
 import requests
 import urllib
 import json
-# import sys
-# import os
 import time
-# import string
 import webbrowser
 
 session = requests.Session()
@@ -30,7 +27,7 @@ def log_in():
     }
 
     header = {
-        "User-Agent":   "Salmonia/\(ver) @tkgling"
+        "User-Agent":   f"Salmonia/{version} @tkgling"
     }
 
     response = session.get(url, headers=header, params=parameters)
@@ -52,7 +49,7 @@ def get_session_token(session_token_code):
         }
 
         header = {
-            "User-Agent":      "Salmonia/\(ver) @tkgling",
+            "User-Agent":      f"Salmonia/{version} @tkgling",
             "Accept":          "application/json",
             "Content-Type":    "application/x-www-form-urlencoded",
             "Content-Length":  str(len(urllib.parse.urlencode(parameters))),
@@ -77,7 +74,7 @@ def get_access_token(session_token):
 
         header = {
             "Host":            "accounts.nintendo.com",
-            "User-Agent":      "Salmonia/\(ver) @tkgling",
+            "User-Agent":      f"Salmonia/{version} @tkgling",
             "Accept":          "application/json",
             "Content-Length":  str(len(urllib.parse.urlencode(parameters))),
         }
@@ -217,4 +214,10 @@ def get_cookie(session_token_code):
     # print("Splatoon Access Token:", splatoon_access_token)
     iksm_session = get_iksm_session(splatoon_access_token)
     # print("Iksm Session:", iksm_session)
-    return
+
+    user_info = {
+        "session_token": session_token_code,
+        "iksm_session": iksm_session
+    }
+
+    return user_info
