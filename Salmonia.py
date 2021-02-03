@@ -39,7 +39,7 @@ class Salmonia():
     iksm_session = None
     session_token = None
     api_token = None
-    job_num = {"splatnet2": 0, "salmonstats": 0, "local": 0}
+    job_num = {"splatnet2": 0, "salmonstats": 0}
     api_errors = 0
 
     def __init__(self):
@@ -75,20 +75,19 @@ class Salmonia():
             try:
                 url_scheme = input("")
                 session_token_code = re.search("de=(.*)&", url_scheme).group(1)
-                user_info = iksm.get_cookie(session_token_code)
-                self.iksm_session = user_info["iksm_session"]
-                self.session_token = user_info["session_token"]
-                Log("\nSuccess")
+                self.session_token = iksm.get_session_token(session_token_code)
+                self.iksm_session = iksm.get_cookie(self.session_token)
+                Log("Success")
                 break
             except KeyboardInterrupt:
-                Log("\rKeyboard Interrupt")
+                CLog("Keyboard Interrupt")
                 sys.exit(1)
             except AttributeError:
-                Log("\rInvalid URL")
+                CLog("Invalid URL")
             except KeyError:
-                Log("\rInvalid URL")
+                CLog("Invalid URL")
             except ValueError as error:
-                Log(f"\rError Description {error}")
+                CLog(f"{error}")
                 sys.exit(1)
         webbrowser.open(URL)
         Log("Login and Paste API token")
@@ -106,10 +105,10 @@ class Salmonia():
                 else:
                     Log("Paste API token again")
             except KeyboardInterrupt:
-                Log("Bye")
+                Log("Bye Bye")
                 sys.exit(1)
             except Exception as error:
-                Log(f"\rError Description {error}")
+                Log(f"{error}")
                 sys.exit(1)
         self.output()  # 設定ファイル書き込み
 
@@ -125,32 +124,41 @@ class Salmonia():
             }
             json.dump(data, f, indent=4)
 
-    def getJobId(self):
+    def update(self):
         try:
-            url = "https://app.splatoon2.nintendo.net/api/coop_results"
-            # Log(self.iksm_session)
-            response = requests.get(url, cookies=dict(iksm_session=self.iksm_session)).json()
-            return int(response["summary"]["card"]["job_num"])
+            Log("Iksm Session regenarating")
+            self.iksm_session = iksm.get_cookie(self.session_token)
+            self.output()
         except:
-            raise ValueError("Invalid/Expired iksm_session")
+            raise ValueError("Invalid session_token")
+
+    def getJobId(self):
+        url = "https://app.splatoon2.nintendo.net/api/coop_results"
+        response = requests.get(url, cookies=dict(iksm_session=self.iksm_session)).json()
+        return int(response["summary"]["card"]["job_num"])
 
     def getResultFromSplatNet2(self):
-        present = self.getJobId()
-        preview = max(self.job_num["splatnet2"], present - 49)
+        try:
+            present = self.getJobId()
+            preview = max(self.job_num["splatnet2"], present - 49, int(self.job_num["salmonstats"]))
 
-        if present == preview:
-            return
+            if present == preview:
+                return
 
-        for job_num in range(preview + 1, present + 1):
-            Log(f"Result {job_num} downloading")
-            url = f"https://app.splatoon2.nintendo.net/api/coop_results/{job_num}"
-            response = requests.get(url, cookies=dict(iksm_session=self.iksm_session)).text
-            with open(JsonPath(job_num), mode="w") as f:
-                f.write(response)
-        self.job_num["splatnet2"] = present
-        self.allResultToSalmonStats(range(preview + 1, present + 1))
+            for job_num in range(preview + 1, present + 1):
+                Log(f"Result {job_num} downloading")
+                url = f"https://app.splatoon2.nintendo.net/api/coop_results/{job_num}"
+                response = requests.get(url, cookies=dict(iksm_session=self.iksm_session)).text
+                with open(JsonPath(job_num), mode="w") as f:
+                    f.write(response)
+            self.job_num["splatnet2"] = present
+            self.allResultToSalmonStats(range(preview + 1, present + 1))
+        except Exception as error:
+            self.update()
+            self.getResultFromSplatNet2()
 
     # 起動時にJSONフォルダ内の未アップロードのリザルトを全てアップロード
+
     def allResultToSalmonStats(self, local=None):
         url = "https://salmon-stats-api.yuki.games/api/results"
         header = {"Content-type": "application/json", "Authorization": "Bearer " + self.api_token}
@@ -183,6 +191,6 @@ if __name__ == "__main__":
             user.output()  # 設定ファイルを更新
             sleep(5)
     except KeyboardInterrupt:
-        Log("\nBye")
+        CLog("Keyboard Interrupt")
     except Exception as error:
         Log(error)
