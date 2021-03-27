@@ -2,3 +2,4 @@ __pycache__
 .git
 config.json
 json
+.DS_Store 
