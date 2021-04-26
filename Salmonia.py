@@ -141,6 +141,10 @@ class SalmonRec():
         resid = str(resid)
         path = "json/" + resid + ".json"
         file = json.load(open(path, "r"))
+        if 'message' in file: # We skip errors in splatnet files
+            message = datetime.now().strftime("%H:%M:%S Error in json file " + resid + ".\n")
+            self.writeLog(message)
+            return
         result = {"results": [file]}
         url = "https://salmon-stats-api.yuki.games/api/results"
         headers = {"Content-type": "application/json",
@@ -184,7 +188,12 @@ class SalmonRec():
         for job_id in file:
             if self.param.salmonstats < int(job_id):
                 path = "json/" + job_id + ".json"
-                results += [json.load(open(path, "r"))]
+                result = json.load(open(path, "r"))
+                if 'message' in result: # We skip errors in splatnet files
+                    message = datetime.now().strftime("%H:%M:%S Error in json file " + job_id + ".\n")
+                    self.writeLog(message)
+                    continue
+                results += [result]
                 if len(results) % 10 == 0:
                     res = requests.post(url, data=json.dumps({"results": results}), headers=headers)
                     results = []
