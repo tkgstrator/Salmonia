@@ -9,6 +9,7 @@ from datetime import datetime
 from time import sleep
 from more_itertools import chunked
 import iksm
+import glob
 
 VERSION = "1.10.0"
 LANG = "en-US"
@@ -165,7 +166,9 @@ class Salmonia():
 
         # Salmon Statsの最新アップロード以上のIDのリザルトを取得
         if local == None:
-            results = list(chunked(filter(lambda f: int(f) > self.job_num["salmonstats"], list(map(lambda f: f[0:-5], os.listdir("json")))), 10))
+            path = "json/*.json"
+            lists = glob.glob(path, recursive=True)
+            results = list(chunked(filter(lambda f: int(f) > self.job_num["salmonstats"], list(map(lambda f: f[5:-5], lists))), 10))
         else:
             results = list(chunked(local, 10))
 
@@ -175,10 +178,13 @@ class Salmonia():
 
             # ログを表示
             for response in json.loads(response.text):
-                Log(f"{response['job_id']} -> {response['salmon_id']} uploading")
-            # アップロードした最後のIDを更新
-            self.job_num["salmonstats"] = int(max(result))
-            sleep(5)
+                try:
+                    Log(f"{response['job_id']} -> {response['salmon_id']} uploading")
+                except Exception as error:
+                    Log(f"Error: {error}")
+                # アップロードした最後のIDを更新
+                self.job_num["salmonstats"] = int(max(result))
+                sleep(5)
 
 
 if __name__ == "__main__":
