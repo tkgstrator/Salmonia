@@ -8,3 +8,4 @@ build
 config.json
 dist
 json
+.DS_Store 
