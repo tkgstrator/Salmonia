@@ -173,7 +173,9 @@ class Salmonia():
             results = list(chunked(local, 10))
 
         for result in results:
-            data = list(map(lambda f: json.load(open(JsonPath(f), mode="r")), result))
+            data = list(filter(lambda fe: "message" not in fe, list(map(lambda f: json.load(open(JsonPath(f), mode="r")), result))))
+            if len(data) == 0:
+                continue
             response = requests.post(url, data=json.dumps({"results": data}), headers=header)
 
             # ログを表示
