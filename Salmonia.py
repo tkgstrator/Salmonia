@@ -11,7 +11,7 @@ from more_itertools import chunked
 import iksm
 import glob
 
-VERSION = "1.10.0"
+VERSION = "1.10.1"
 LANG = "en-US"
 URL = "https://salmon-stats.yuki.games/"
 
