@@ -11,7 +11,7 @@ from more_itertools import chunked
 import iksm
 import glob
 
-VERSION = "1.10.0"
+VERSION = "1.10.1"
 LANG = "en-US"
 URL = "https://salmon-stats.yuki.games/"
 
@@ -135,13 +135,15 @@ class Salmonia():
 
     def getJobId(self):
         url = "https://app.splatoon2.nintendo.net/api/coop_results"
-        response = requests.get(url, cookies=dict(iksm_session=self.iksm_session)).json()
+        response = requests.get(url, cookies=dict(
+            iksm_session=self.iksm_session)).json()
         return int(response["summary"]["card"]["job_num"])
 
     def getResultFromSplatNet2(self):
         try:
             present = self.getJobId()
-            preview = max(self.job_num["splatnet2"], present - 49, int(self.job_num["salmonstats"]))
+            preview = max(
+                self.job_num["splatnet2"], present - 49, int(self.job_num["salmonstats"]))
 
             if present == preview:
                 return
@@ -149,7 +151,8 @@ class Salmonia():
             for job_num in range(preview + 1, present + 1):
                 Log(f"Result {job_num} downloading")
                 url = f"https://app.splatoon2.nintendo.net/api/coop_results/{job_num}"
-                response = requests.get(url, cookies=dict(iksm_session=self.iksm_session)).text
+                response = requests.get(url, cookies=dict(
+                    iksm_session=self.iksm_session)).text
                 with open(JsonPath(job_num), mode="w") as f:
                     f.write(response)
             self.job_num["splatnet2"] = present
@@ -162,21 +165,25 @@ class Salmonia():
 
     def allResultToSalmonStats(self, local=None):
         url = "https://salmon-stats-api.yuki.games/api/results"
-        header = {"Content-type": "application/json", "Authorization": "Bearer " + self.api_token}
+        header = {"Content-type": "application/json",
+                  "Authorization": "Bearer " + self.api_token}
 
         # Salmon Statsの最新アップロード以上のIDのリザルトを取得
         if local == None:
             path = "json/*.json"
             lists = glob.glob(path, recursive=True)
-            results = list(chunked(filter(lambda f: int(f) > self.job_num["salmonstats"], list(map(lambda f: f[5:-5], lists))), 10))
+            results = list(chunked(filter(lambda f: int(
+                f) > self.job_num["salmonstats"], list(map(lambda f: f[5:-5], lists))), 10))
         else:
             results = list(chunked(local, 10))
 
         for result in results:
-            data = list(filter(lambda fe: "message" not in fe, list(map(lambda f: json.load(open(JsonPath(f), mode="r")), result))))
+            data = list(filter(lambda fe: "message" not in fe, list(
+                map(lambda f: json.load(open(JsonPath(f), mode="r")), result))))
             if len(data) == 0:
                 continue
-            response = requests.post(url, data=json.dumps({"results": data}), headers=header)
+            response = requests.post(url, data=json.dumps(
+                {"results": data}), headers=header)
 
             # ログを表示
             for response in json.loads(response.text):
