@@ -11,7 +11,7 @@ from more_itertools import chunked
 import iksm
 import glob
 
-VERSION = "1.10.1"
+VERSION = "1.11.0"
 LANG = "en-US"
 URL = "https://salmon-stats.yuki.games/"
 
@@ -172,8 +172,7 @@ class Salmonia():
         if local == None:
             path = "json/*.json"
             lists = glob.glob(path, recursive=True)
-            results = list(chunked(filter(lambda f: int(
-                f) > self.job_num["salmonstats"], list(map(lambda f: f[5:-5], lists))), 10))
+            results = list(chunked(filter(lambda f: int(f) > self.job_num["salmonstats"], list(map(lambda f: f[5:-5], lists))), 10))
         else:
             results = list(chunked(local, 10))
 
@@ -193,7 +192,7 @@ class Salmonia():
                     Log(f"Error: {error}")
                 # アップロードした最後のIDを更新
                 self.job_num["salmonstats"] = int(max(result))
-                sleep(5)
+            sleep(5)
 
 
 if __name__ == "__main__":
