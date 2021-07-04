@@ -155,11 +155,18 @@ class Salmonia():
                     iksm_session=self.iksm_session)).text
                 with open(JsonPath(job_num), mode="w") as f:
                     f.write(response)
-            self.job_num["splatnet2"] = present
-            self.allResultToSalmonStats(range(preview + 1, present + 1))
         except Exception as error:
             self.update()
             self.getResultFromSplatNet2()
+            
+        try:
+            self.allResultToSalmonStats(range(preview + 1, present + 1))
+        except Exception as error:
+            sleep(5)
+            self.getResultFromSplatNet2()
+            
+        self.job_num["splatnet2"] = present
+
 
     # 起動時にJSONフォルダ内の未アップロードのリザルトを全てアップロード
 
