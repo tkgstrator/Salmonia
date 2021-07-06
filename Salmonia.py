@@ -142,12 +142,16 @@ class Salmonia():
     def getResultFromSplatNet2(self):
         try:
             present = self.getJobId()
-            preview = max(
-                self.job_num["splatnet2"], present - 49, int(self.job_num["salmonstats"]))
+        except Exception as error:
+            self.update()
+            return
 
-            if present == preview:
-                return
+        preview = max(self.job_num["splatnet2"], present - 49, int(self.job_num["salmonstats"]))
 
+        if present == preview:
+            return
+
+        try:
             for job_num in range(preview + 1, present + 1):
                 Log(f"Result {job_num} downloading")
                 url = f"https://app.splatoon2.nintendo.net/api/coop_results/{job_num}"
@@ -157,14 +161,16 @@ class Salmonia():
                     f.write(response)
         except Exception as error:
             self.update()
-            self.getResultFromSplatNet2()
-            
-        try:
-            self.allResultToSalmonStats(range(preview + 1, present + 1))
-        except Exception as error:
-            sleep(5)
-            self.getResultFromSplatNet2()
-            
+            return
+                
+        while True:
+            try:
+                self.allResultToSalmonStats(range(preview + 1, present + 1))
+                break
+            except Exception as error:
+                CLog(f"Upload error")
+                sleep(5)
+                # FIXME limit the number of retries?
         self.job_num["splatnet2"] = present
 
 
