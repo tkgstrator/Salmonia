@@ -162,15 +162,20 @@ class Salmonia():
         except Exception as error:
             self.update()
             return
-                
-        for i in range(5):
+         
+        upload_error = False
+        for i in range(5):            
             try:
                 self.allResultToSalmonStats(range(preview + 1, present + 1))
+                upload_error = False
                 break
             except Exception as error:
                 CLog(f"Upload error")
+                upload_error = True
                 sleep(5)
-
+        if upload_error:
+            return
+        
         self.job_num["splatnet2"] = present
 
 
