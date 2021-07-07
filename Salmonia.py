@@ -163,14 +163,14 @@ class Salmonia():
             self.update()
             return
                 
-        while True:
+        for i in range(5):
             try:
                 self.allResultToSalmonStats(range(preview + 1, present + 1))
                 break
             except Exception as error:
                 CLog(f"Upload error")
                 sleep(5)
-                # FIXME limit the number of retries?
+
         self.job_num["splatnet2"] = present
 
 
