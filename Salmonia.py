@@ -11,7 +11,6 @@ from more_itertools import chunked
 import iksm
 import glob
 
-VERSION = "1.12.3"
 LANG = "en-US"
 URL = "https://salmon-stats.yuki.games/"
 
@@ -44,7 +43,7 @@ class Salmonia():
     api_errors = 0
 
     def __init__(self):
-        Log(f"Salmonia version {VERSION}")
+        Log(f"Salmonia version {iksm.version}")
         Log("Thanks @Yukinkling and @barley_ural!")
         self.initConfig()
         
