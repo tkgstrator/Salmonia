@@ -8,7 +8,7 @@ import time
 from datetime import datetime
 
 session = requests.Session()
-version = "1.13.2"
+version = "1.14.0"
 
 
 def log_in():
