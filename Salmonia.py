@@ -147,7 +147,7 @@ class Salmonia():
     def getJobId(self):
         url = "https://app.splatoon2.nintendo.net/api/coop_results"
         response = requests.get(url, cookies=dict(
-            iksm_session=self.iksm_session)).json()
+            iksm_session=self.iksm_session), timeout=60).json()
         return int(response["summary"]["card"]["job_num"])
 
     def getResultFromSplatNet2(self):
