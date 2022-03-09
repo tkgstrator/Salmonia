@@ -133,9 +133,9 @@ class Salmonia():
             self.output()
         except Exception as ex:
             Log("Session Cookie Error")
-            for i in range(5):
+            for i in range(10):
                 try:
-                    sleep(120)
+                    sleep(120 * i)
                     Salmonia.initConfig(self)
                     self.iksm_session = iksm.get_cookie(self.session_token)
                     self.output()
@@ -147,7 +147,7 @@ class Salmonia():
     def getJobId(self):
         url = "https://app.splatoon2.nintendo.net/api/coop_results"
         response = requests.get(url, cookies=dict(
-            iksm_session=self.iksm_session)).json()
+            iksm_session=self.iksm_session), timeout=60).json()
         return int(response["summary"]["card"]["job_num"])
 
     def getResultFromSplatNet2(self):
