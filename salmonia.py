@@ -99,19 +99,32 @@ environment = Environment.Local
 
 
 class Salmonia:
-    userinfo = None
     version = iksm.get_app_version()
 
     def __init__(self):
         print(f"Salmonia v{self.version} for Splatoon 2 ({environment.value})")
         try:
-            self.userinfo = iksm.load()
-            print(self.userinfo)
+            self.__userinfo: iksm.UserInfo = iksm.load()
+            print(self.__userinfo)
             result_id = self.get_latest_result_id()
             self.upload_result(result_id)
+            self.get_local_latest_result_id()
         except FileNotFoundError:
             self.sign_in()
             sys.exit(0)
+
+    @property
+    def userinfo(self):
+        pass
+
+    @userinfo.getter
+    def userinfo(self):
+        return self.__userinfo
+
+    @userinfo.setter
+    def userinfo(self, userinfo):
+        print("Update")
+        iksm.save(userinfo)
 
     def sign_in(self):
         print(iksm.get_session_token_code(self.version))
@@ -132,9 +145,21 @@ class Salmonia:
         response = Results.from_json(self.__request_with_auth(url).text)
         return response.summary.card.job_num
 
+    def get_local_latest_result_id(self) -> int:
+        return max(
+            list(
+                map(
+                    lambda x: int(os.path.splitext(os.path.basename(x))[0]),
+                    os.listdir("results"),
+                )
+            )
+        )
+
     def __get_result(self, result_id) -> json:
         url = f"https://app.splatoon2.nintendo.net/api/coop_results/{result_id}"
         response = self.__request_with_auth(url).json()
+        with open(f"results/{result_id}.json", "w") as f:
+            json.dump(response, f)
         return response
 
     def upload_result(self, result_id):
@@ -144,3 +169,4 @@ class Salmonia:
         response = UploadResults.from_json(session.post(url, json=parameters).text)
         for result in response.results:
             print(f"Uploaded {result.salmon_id} => {result.status.value}")
+            self.userinfo.job_num = result.salmon_id
