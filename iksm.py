@@ -200,19 +200,19 @@ class UserInfo:
     iksm_session: str
     nsa_id: str
     friend_code: str
-    job_num: int = 0
+    result_id: int = 0
 
     @property
-    def __job_num(self):
+    def job_num(self):
         pass
 
-    @__job_num.getter
-    def __job_num(self):
-        return self.job_num
+    @job_num.getter
+    def job_num(self):
+        return self.result_id
 
-    @__job_num.setter
-    def __job_num(self, __job_num: int):
-        self.job_num = __job_num
+    @job_num.setter
+    def job_num(self, job_num: int):
+        self.result_id = max(self.result_id, job_num)
         save(self)
 
 
@@ -459,7 +459,6 @@ def post(url: str, json: json):
 
 def save(data: UserInfo) -> UserInfo:
     try:
-        print(asdict(data))
         with open("config.json", "w") as f:
             json.dump(asdict(data), f, indent=4)
         return data
