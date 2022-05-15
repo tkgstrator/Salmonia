@@ -7,6 +7,7 @@ import json
 import iksm
 import sys
 import os
+import time
 from enum import Enum
 
 
@@ -104,27 +105,11 @@ class Salmonia:
     def __init__(self):
         print(f"Salmonia v{self.version} for Splatoon 2 ({environment.value})")
         try:
-            self.__userinfo: iksm.UserInfo = iksm.load()
-            print(self.__userinfo)
-            result_id = self.get_latest_result_id()
-            self.upload_result(result_id)
-            self.get_local_latest_result_id()
+            self.userinfo: iksm.UserInfo = iksm.load()
+            self.upload_all_result()
         except FileNotFoundError:
             self.sign_in()
             sys.exit(0)
-
-    @property
-    def userinfo(self):
-        pass
-
-    @userinfo.getter
-    def userinfo(self):
-        return self.__userinfo
-
-    @userinfo.setter
-    def userinfo(self, userinfo):
-        print("Update")
-        iksm.save(userinfo)
 
     def sign_in(self):
         print(iksm.get_session_token_code(self.version))
@@ -146,14 +131,17 @@ class Salmonia:
         return response.summary.card.job_num
 
     def get_local_latest_result_id(self) -> int:
-        return max(
-            list(
-                map(
-                    lambda x: int(os.path.splitext(os.path.basename(x))[0]),
-                    os.listdir("results"),
+        results = os.listdir("results")
+        if len(results) == 0:
+            return 0
+        else:
+            return max(
+                list(
+                    map(
+                        lambda x: int(os.path.splitext(os.path.basename(x))[0]), results
+                    )
                 )
             )
-        )
 
     def __get_result(self, result_id) -> json:
         url = f"https://app.splatoon2.nintendo.net/api/coop_results/{result_id}"
@@ -162,11 +150,25 @@ class Salmonia:
             json.dump(response, f)
         return response
 
-    def upload_result(self, result_id):
+    def upload_result(self, result_id: int):
         result = self.__get_result(result_id)
         url = f"{environment.url()}/results"
         parameters = {"results": [result]}
         response = UploadResults.from_json(session.post(url, json=parameters).text)
         for result in response.results:
-            print(f"Uploaded {result.salmon_id} => {result.status.value}")
-            self.userinfo.job_num = result.salmon_id
+            print(f"Uploaded {result_id} => {result.salmon_id}: {result.status.value}")
+            self.userinfo.job_num = max(result_id, self.userinfo.job_num)
+
+    def upload_all_result(self):
+        latest_result_id = self.get_latest_result_id()
+        local_result_id = self.get_local_latest_result_id()
+        if environment == Environment.Local:
+            local_result_id -= 5
+        if latest_result_id == local_result_id:
+            print("No new results")
+            return
+        oldest_result_id = max(local_result_id + 1, latest_result_id - 49)
+        print(f"{oldest_result_id} => {latest_result_id}")
+        for result_id in range(oldest_result_id, latest_result_id + 1):
+            self.upload_result(result_id)
+            time.sleep(1)
