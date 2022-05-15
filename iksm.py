@@ -13,17 +13,6 @@ from enum import Enum
 
 @dataclass_json
 @dataclass
-class Config:
-    session_token: str
-    iksm_session: str
-    friend_code: str
-    nsaid: str
-    username: str
-    error_counts: int = 0
-
-
-@dataclass_json
-@dataclass
 class ErrorNSO:
     error: str
     error_description: str
@@ -199,11 +188,32 @@ class Flapg:
 
 @dataclass_json
 @dataclass
+class JobNum:
+    local: int = 0
+    splatnet2: int = 0
+
+
+@dataclass_json
+@dataclass
 class UserInfo:
     session_token: str
     iksm_session: str
     nsa_id: str
     friend_code: str
+    job_num: int = 0
+
+    @property
+    def __job_num(self):
+        pass
+
+    @__job_num.getter
+    def __job_num(self):
+        return self.job_num
+
+    @__job_num.setter
+    def __job_num(self, __job_num: int):
+        self.job_num = __job_num
+        save(self)
 
 
 session = requests.Session()
