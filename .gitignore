@@ -1,12 +1,5 @@
-*.spec
-.DS_Store
-.git
-.vscode
-Pipfile.lock
 __pycache__
-build
 config.json
-dist
-json
-.DS_Store 
-*.code-workspace
+.env
+results/*.json
+.env
