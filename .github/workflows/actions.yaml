@@ -23,7 +23,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: build
-        run: pyinstaller main.py --onefile
+        run: pyinstaller main.py --onefile --name Salmonia
 
       - name: upload
         uses: actions/upload-artifact@v1
