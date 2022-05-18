@@ -127,12 +127,15 @@ class Salmonia:
     version = iksm.get_app_version()
 
     def __init__(self):
+        if not os.path.exists("results"):
+            os.mkdir("results")
         print(f"Salmonia v{self.version} for Splatoon 2 ({environment.mode()})")
         try:
             self.userinfo: iksm.UserInfo = iksm.load()
             self.upload_all_result()
         except FileNotFoundError as error:
             self.sign_in()
+            self.userinfo: iksm.UserInfo = iksm.load()
             self.upload_all_result()
 
     def sign_in(self):
@@ -182,8 +185,8 @@ class Salmonia:
         url = f"{environment.url()}/results"
         parameters = {"results": [result]}
         try:
-            res = session.post(url, json=parameters).text
-            response = UploadResults.from_json(res)
+            res = session.post(url, json=parameters)
+            response = UploadResults.from_json(res.text)
             for result in response.results:
                 print(
                     f"\r{datetime.now().strftime('%H:%m:%S')} Uploaded {result_id}",
@@ -191,6 +194,7 @@ class Salmonia:
                 )
                 self.userinfo.job_num = max(result_id, self.userinfo.job_num)
         except Exception as error:
+            print(f"\rError {res.status_code}")
             sys.exit(1)
 
     def upload_all_result(self):
@@ -200,7 +204,6 @@ class Salmonia:
             local_result_id -= 5
         if latest_result_id == local_result_id:
             print(f"\r{datetime.now().strftime('%H:%m:%S')} No new results", end="")
-            return
         oldest_result_id = max(local_result_id + 1, latest_result_id - 49)
         for result_id in range(oldest_result_id, latest_result_id + 1):
             self.upload_result(result_id)
