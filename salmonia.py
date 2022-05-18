@@ -29,13 +29,13 @@ class Environment(Enum):
 
     def url(self) -> str:
         if self == Environment.Production:
-            return "https://api.splatnet2.com/v1"
+            return "http://api.splatnet2.com"
         elif self == Environment.Development:
-            return "https://api-dev.splatnet2.com/v1"
+            return "http://api-dev.splatnet2.com"
         elif self == Environment.Sandbox:
-            return "https://api-sandbox.splatnet2.com/v1"
+            return "http://api-sandbox.splatnet2.com"
         elif self == Environment.Local:
-            return "http://localhost:3000/v1"
+            return "http://localhost:3000"
 
 
 @dataclass_json
@@ -96,7 +96,7 @@ class Results:
 
 
 session = requests.Session()
-environment = Environment.Local
+environment = Environment.Development
 
 
 class Salmonia:
@@ -107,7 +107,8 @@ class Salmonia:
         try:
             self.userinfo: iksm.UserInfo = iksm.load()
             self.upload_all_result()
-        except FileNotFoundError:
+        except FileNotFoundError as error:
+            print(error)
             self.sign_in()
             sys.exit(0)
 
@@ -131,6 +132,8 @@ class Salmonia:
         return response.summary.card.job_num
 
     def get_local_latest_result_id(self) -> int:
+        if not os.path.exists("results"):
+            os.mkdir("results")
         results = os.listdir("results")
         if len(results) == 0:
             return 0
@@ -154,10 +157,14 @@ class Salmonia:
         result = self.__get_result(result_id)
         url = f"{environment.url()}/results"
         parameters = {"results": [result]}
-        response = UploadResults.from_json(session.post(url, json=parameters).text)
-        for result in response.results:
-            print(f"Uploaded {result_id} => {result.salmon_id}: {result.status.value}")
-            self.userinfo.job_num = max(result_id, self.userinfo.job_num)
+        try:
+            res = session.post(url, json=parameters).text
+            response = UploadResults.from_json(res)
+            for result in response.results:
+                print(f"Uploaded {result_id} => {result.salmon_id}: {result.status.value}")
+                self.userinfo.job_num = max(result_id, self.userinfo.job_num)
+        except Exception as error:
+            sys.exit(1)
 
     def upload_all_result(self):
         latest_result_id = self.get_latest_result_id()
