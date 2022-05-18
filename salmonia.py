@@ -1,7 +1,9 @@
 from dataclasses import asdict, dataclass
+from datetime import datetime
 from typing_extensions import Self
 from dataclasses_json import dataclass_json
 from typing import List, Type
+from dotenv import load_dotenv
 import requests
 import json
 import iksm
@@ -9,6 +11,9 @@ import sys
 import os
 import time
 from enum import Enum
+
+# Load Environment Variables
+load_dotenv()
 
 
 class Status(Enum):
@@ -22,10 +27,26 @@ class APIVersion(Enum):
 
 
 class Environment(Enum):
-    Development = "Development"
-    Production = "Production"
-    Sandbox = "Sandbox"
-    Local = "Local"
+    Production = 0
+    Development = 1
+    Sandbox = 2
+    Local = 3
+
+    def __init__(self, value: int):
+        if value <= 3 and value >= 0:
+            self.id = value
+        else:
+            self.id = value
+
+    def mode(self) -> str:
+        if self == Environment.Production:
+            return "Production"
+        elif self == Environment.Development:
+            return "Development"
+        elif self == Environment.Sandbox:
+            return "Sandbox"
+        elif self == Environment.Local:
+            return "Local"
 
     def url(self) -> str:
         if self == Environment.Production:
@@ -96,27 +117,27 @@ class Results:
 
 
 session = requests.Session()
-environment = Environment.Development
+environment = Environment(int(os.getenv("LAUNCH_MODE")))
 
 
 class Salmonia:
     version = iksm.get_app_version()
 
     def __init__(self):
-        print(f"Salmonia v{self.version} for Splatoon 2 ({environment.value})")
+        print(f"Salmonia v{self.version} for Splatoon 2")
         try:
             self.userinfo: iksm.UserInfo = iksm.load()
             self.upload_all_result()
         except FileNotFoundError as error:
-            print(error)
             self.sign_in()
-            sys.exit(0)
+            self.upload_all_result()
 
     def sign_in(self):
         print(iksm.get_session_token_code(self.version))
         while True:
             try:
                 iksm.get_cookie(input(""), self.version)
+                break
             except KeyboardInterrupt:
                 sys.exit(0)
 
@@ -161,7 +182,10 @@ class Salmonia:
             res = session.post(url, json=parameters).text
             response = UploadResults.from_json(res)
             for result in response.results:
-                print(f"Uploaded {result_id} => {result.salmon_id}: {result.status.value}")
+                print(
+                    f"\r{datetime.now().strftime('%H:%m:%S')} Uploaded {result_id}",
+                    end="",
+                )
                 self.userinfo.job_num = max(result_id, self.userinfo.job_num)
         except Exception as error:
             sys.exit(1)
@@ -172,10 +196,9 @@ class Salmonia:
         if environment == Environment.Local:
             local_result_id -= 5
         if latest_result_id == local_result_id:
-            print("No new results")
+            print(f"\r{datetime.now().strftime('%H:%m:%S')} No new results", end="")
             return
         oldest_result_id = max(local_result_id + 1, latest_result_id - 49)
-        print(f"{oldest_result_id} => {latest_result_id}")
         for result_id in range(oldest_result_id, latest_result_id + 1):
             self.upload_result(result_id)
             time.sleep(1)

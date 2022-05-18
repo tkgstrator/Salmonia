@@ -1,4 +1,5 @@
 from dataclasses import asdict, dataclass
+from xml.dom import NotFoundErr
 from dataclasses_json import dataclass_json
 from typing import List, Type
 from typing import Optional
@@ -8,6 +9,7 @@ import urllib
 import json
 import sys
 import time
+import os
 from enum import Enum
 
 
@@ -229,6 +231,40 @@ class Type(Enum):
 def get_cookie(url_scheme, version: str) -> UserInfo:
     session_token = get_session_token(url_scheme, version)
     print(session_token)
+    access_token = get_access_token(session_token.session_token, version)
+    print(access_token)
+    splatoon_token = get_splatoon_token(access_token, version)
+    print(splatoon_token)
+    splatoon_access_token = get_splatoon_access_token(splatoon_token, version)
+    print(splatoon_access_token)
+    iksm_session = get_iksm_session(splatoon_access_token, version)
+    print(iksm_session)
+    return save(
+        UserInfo(
+            session_token.session_token,
+            iksm_session,
+            splatoon_token.result.user.nsaId,
+            splatoon_token.result.user.links.friendCode.id,
+            result_id=os.listdir("results"),
+        )
+    )
+
+
+def __get_latest_result_id() -> int:
+    try:
+        return max(
+            list(
+                map(
+                    lambda x: int(os.path.splitext(os.path.basename(x))[0]),
+                    os.listdir("results"),
+                )
+            )
+        )
+    except FileNotFoundError:
+        return 0
+
+
+def renew_cookie(session_token: str, version: str) -> UserInfo:
     access_token = get_access_token(session_token, version)
     print(access_token)
     splatoon_token = get_splatoon_token(access_token, version)
@@ -243,25 +279,7 @@ def get_cookie(url_scheme, version: str) -> UserInfo:
             iksm_session,
             splatoon_token.result.user.nsaId,
             splatoon_token.result.user.links.friendCode.id,
-        )
-    )
-
-
-def renew_cookie(session_token, version) -> UserInfo:
-    access_token = get_access_token(session_token, version)
-    print(access_token)
-    splatton_token = get_splatoon_token(access_token, version)
-    print(splatton_token)
-    splatoon_access_token = get_splatoon_access_token(splatton_token, version)
-    print(splatoon_access_token)
-    iksm_session = get_iksm_session(splatoon_access_token, version)
-    print(iksm_session)
-    return save(
-        UserInfo(
-            session_token,
-            iksm_session,
-            splatton_token.result.user.nsaId,
-            splatton_token.result.user.links.friendCode.id,
+            result_id=__get_latest_result_id(),
         )
     )
 
@@ -312,12 +330,12 @@ def get_session_token(url_scheme: str, version: str) -> SessionToken:
         sys.exit(1)
 
 
-def get_access_token(session_token: SessionToken, version: str) -> AccessToken:
+def get_access_token(session_token: str, version: str) -> AccessToken:
     url = "https://accounts.nintendo.com/connect/1.0.0/api/token"
     parameters = {
         "client_id": "71b963c1b7b6d119",
         "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer-session-token",
-        "session_token": session_token.session_token,
+        "session_token": session_token,
     }
     headers = {
         "Host": "accounts.nintendo.com",
