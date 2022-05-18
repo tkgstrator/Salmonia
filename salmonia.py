@@ -33,10 +33,7 @@ class Environment(Enum):
     Local = 3
 
     def __init__(self, value: int):
-        if value <= 3 and value >= 0:
-            self.id = value
-        else:
-            self.id = value
+        self.id = id
 
     def mode(self) -> str:
         if self == Environment.Production:
@@ -116,15 +113,21 @@ class Results:
     summary: Summary
 
 
+def __get_launch_mode() -> int:
+    try:
+        return int(os.getenv("LAUNCH_MODE"))
+    except:
+        return 0
+
 session = requests.Session()
-environment = Environment(int(os.getenv("LAUNCH_MODE")))
+environment = Environment(__get_launch_mode())
 
 
 class Salmonia:
     version = iksm.get_app_version()
 
     def __init__(self):
-        print(f"Salmonia v{self.version} for Splatoon 2")
+        print(f"Salmonia v{self.version} for Splatoon 2 ({environment.mode()})")
         try:
             self.userinfo: iksm.UserInfo = iksm.load()
             self.upload_all_result()
