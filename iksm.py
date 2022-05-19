@@ -245,7 +245,7 @@ def get_cookie(url_scheme, version: str) -> UserInfo:
             iksm_session,
             splatoon_token.result.user.nsaId,
             splatoon_token.result.user.links.friendCode.id,
-            result_id=os.listdir("results"),
+            result_id=__get_latest_result_id(),
         )
     )
 
