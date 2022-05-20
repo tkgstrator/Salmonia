@@ -275,7 +275,7 @@ def renew_cookie(session_token: str, version: str) -> UserInfo:
     print(iksm_session)
     return save(
         UserInfo(
-            session_token.session_token,
+            session_token,
             iksm_session,
             splatoon_token.result.user.nsaId,
             splatoon_token.result.user.links.friendCode.id,

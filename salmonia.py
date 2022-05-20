@@ -119,6 +119,7 @@ def __get_launch_mode() -> int:
     except:
         return 0
 
+
 session = requests.Session()
 environment = Environment(__get_launch_mode())
 
@@ -154,9 +155,15 @@ class Salmonia:
         return response
 
     def get_latest_result_id(self) -> int:
-        url = "https://app.splatoon2.nintendo.net/api/coop_results"
-        response = Results.from_json(self.__request_with_auth(url).text)
-        return response.summary.card.job_num
+        try:
+            url = "https://app.splatoon2.nintendo.net/api/coop_results"
+            response = Results.from_json(self.__request_with_auth(url).text)
+            return response.summary.card.job_num
+        except KeyError:
+            self.userinfo = iksm.renew_cookie(self.userinfo.session_token, self.version)
+            url = "https://app.splatoon2.nintendo.net/api/coop_results"
+            response = Results.from_json(self.__request_with_auth(url).text)
+            return response.summary.card.job_num
 
     def get_local_latest_result_id(self) -> int:
         if not os.path.exists("results"):
