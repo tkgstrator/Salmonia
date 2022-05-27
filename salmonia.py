@@ -25,6 +25,9 @@ class APIVersion(Enum):
     V1 = "v1"
     V2 = "v2"
 
+class ResultType(Enum):
+    LOCAL = 0
+    ONLINE = 1
 
 class Environment(Enum):
     Production = 0
@@ -125,12 +128,12 @@ class Salmonia:
         try:
             self.userinfo: iksm.UserInfo = iksm.load()
             self.host_type = Environment(self.userinfo.host_type)
-            print(f"Launch Mode ({self.host_type.mode()})")
-            self.upload_all_result()
+            self.uploaded_result_id = self.userinfo.result_id
+            self.upload_local_result()
         except FileNotFoundError as error:
             self.sign_in()
             self.userinfo: iksm.UserInfo = iksm.load()
-            self.upload_all_result()
+            self.upload_local_result()
 
     def sign_in(self):
         print(iksm.get_session_token_code(self.version))
@@ -175,6 +178,15 @@ class Salmonia:
                     )
                 )
             )
+    
+    def get_local_result_ids(self) -> [int]:
+        if not os.path.exists("results"):
+            os.mkdir("results")
+        results = os.listdir("results")
+        if len(results) == 0:
+            return 0
+        else:
+            return sorted(list(map(lambda x: int(os.path.splitext(os.path.basename(x))[0]), results)))
 
     def __get_result(self, result_id) -> json:
         url = f"https://app.splatoon2.nintendo.net/api/coop_results/{result_id}"
@@ -183,8 +195,19 @@ class Salmonia:
             json.dump(response, f)
         return response
 
-    def upload_result(self, result_id: int):
-        result = self.__get_result(result_id)
+    def __get_local_result(self, result_id) -> json:
+        path = f"results/{result_id}.json"
+        with open(path, mode="r") as f:
+            return json.load(f)
+
+    def __upload_result(self, result_id: int, type: ResultType):
+        # Load a result
+        if type == ResultType.ONLINE:
+            result = self.__get_result(result_id)
+        if type == ResultType.LOCAL:
+            result = self.__get_local_result(result_id)
+        
+        # Upload a result
         url = f"{self.host_type.url()}/results"
         parameters = {"results": [result]}
         try:
@@ -192,21 +215,29 @@ class Salmonia:
             response = UploadResults.from_json(res.text)
             for result in response.results:
                 print(
-                    f"\r{datetime.now().strftime('%H:%m:%S')} Uploaded {result_id}",
+                    f"\r{datetime.now().strftime('%H:%m:%S')} Uploaded {result_id} -> {result.salmon_id}",
                     end="",
                 )
                 self.userinfo.job_num = max(result_id, self.userinfo.job_num)
+                time.sleep(1)
         except Exception as error:
-            print("Server is unavailable")
+            sys.exit(1)
 
+    def upload_local_result(self):
+        print(f"Launch Mode ({self.host_type.mode()})")
+        unuploaded_result_ids = list(filter(lambda x: x > self.uploaded_result_id ,self.get_local_result_ids()))
+        
+        # Upload local results
+        for result_id in unuploaded_result_ids:
+            self.__upload_result(result_id, ResultType.LOCAL)
+            
     def upload_all_result(self):
         latest_result_id = self.get_latest_result_id()
         local_result_id = self.get_local_latest_result_id()
-        if self.host_type == Environment.Local:
-            local_result_id -= 5
+
         if latest_result_id == local_result_id:
             print(f"\r{datetime.now().strftime('%H:%m:%S')} No new results", end="")
+
         oldest_result_id = max(local_result_id + 1, latest_result_id - 49)
         for result_id in range(oldest_result_id, latest_result_id + 1):
-            self.upload_result(result_id)
-            time.sleep(1)
+            self.__upload_result(result_id)
