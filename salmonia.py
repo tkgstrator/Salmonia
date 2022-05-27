@@ -47,13 +47,13 @@ class Environment(Enum):
 
     def url(self) -> str:
         if self == Environment.Production:
-            return "http://api.splatnet2.com"
+            return "https://api.splatnet2.com/v1"
         elif self == Environment.Development:
-            return "http://api-dev.splatnet2.com"
+            return "https://api-dev.splatnet2.com/v1"
         elif self == Environment.Sandbox:
-            return "http://api-sandbox.splatnet2.com"
+            return "https://api-sandbox.splatnet2.com/v1"
         elif self == Environment.Local:
-            return "http://localhost:3000"
+            return "http://localhost:3000/v1"
 
 
 @dataclass_json
@@ -112,16 +112,7 @@ class Summary:
 class Results:
     summary: Summary
 
-
-def __get_launch_mode() -> int:
-    try:
-        return int(os.getenv("LAUNCH_MODE"))
-    except:
-        return 0
-
-
 session = requests.Session()
-environment = Environment(__get_launch_mode())
 
 
 class Salmonia:
@@ -130,9 +121,11 @@ class Salmonia:
     def __init__(self):
         if not os.path.exists("results"):
             os.mkdir("results")
-        print(f"Salmonia v{self.version} for Splatoon 2 ({environment.mode()})")
+        print(f"Salmonia v{self.version} for Splatoon 2")
         try:
             self.userinfo: iksm.UserInfo = iksm.load()
+            self.host_type = Environment(self.userinfo.host_type)
+            print(f"Launch Mode ({self.host_type.mode()})")
             self.upload_all_result()
         except FileNotFoundError as error:
             self.sign_in()
@@ -143,6 +136,7 @@ class Salmonia:
         print(iksm.get_session_token_code(self.version))
         while True:
             try:
+                # Get cookie for Production Mode
                 iksm.get_cookie(input(""), self.version)
                 break
             except KeyboardInterrupt:
@@ -160,10 +154,12 @@ class Salmonia:
             response = Results.from_json(self.__request_with_auth(url).text)
             return response.summary.card.job_num
         except KeyError:
-            self.userinfo = iksm.renew_cookie(self.userinfo.session_token, self.version)
+            self.userinfo = iksm.renew_cookie(self.userinfo.session_token, self.version, self.host_type.value)
             url = "https://app.splatoon2.nintendo.net/api/coop_results"
             response = Results.from_json(self.__request_with_auth(url).text)
             return response.summary.card.job_num
+        except:
+            sys.exit(1)
 
     def get_local_latest_result_id(self) -> int:
         if not os.path.exists("results"):
@@ -189,7 +185,7 @@ class Salmonia:
 
     def upload_result(self, result_id: int):
         result = self.__get_result(result_id)
-        url = f"{environment.url()}/results"
+        url = f"{self.host_type.url()}/results"
         parameters = {"results": [result]}
         try:
             res = session.post(url, json=parameters)
@@ -201,13 +197,12 @@ class Salmonia:
                 )
                 self.userinfo.job_num = max(result_id, self.userinfo.job_num)
         except Exception as error:
-            print(f"\rError {res.status_code}")
-            sys.exit(1)
+            print("Server is unavailable")
 
     def upload_all_result(self):
         latest_result_id = self.get_latest_result_id()
         local_result_id = self.get_local_latest_result_id()
-        if environment == Environment.Local:
+        if self.host_type == Environment.Local:
             local_result_id -= 5
         if latest_result_id == local_result_id:
             print(f"\r{datetime.now().strftime('%H:%m:%S')} No new results", end="")

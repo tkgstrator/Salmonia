@@ -203,6 +203,7 @@ class UserInfo:
     nsa_id: str
     friend_code: str
     result_id: int = 0
+    host_type: int = 0
 
     @property
     def job_num(self):
@@ -228,7 +229,7 @@ class Type(Enum):
     APP = "app"
 
 
-def get_cookie(url_scheme, version: str) -> UserInfo:
+def get_cookie(url_scheme, version: str, host_type: int = 0) -> UserInfo:
     session_token = get_session_token(url_scheme, version)
     print(session_token)
     access_token = get_access_token(session_token.session_token, version)
@@ -246,6 +247,7 @@ def get_cookie(url_scheme, version: str) -> UserInfo:
             splatoon_token.result.user.nsaId,
             splatoon_token.result.user.links.friendCode.id,
             result_id=__get_latest_result_id(),
+            host_type=host_type
         )
     )
 
@@ -264,7 +266,7 @@ def __get_latest_result_id() -> int:
         return 0
 
 
-def renew_cookie(session_token: str, version: str) -> UserInfo:
+def renew_cookie(session_token: str, version: str, host_type: int = 0) -> UserInfo:
     access_token = get_access_token(session_token, version)
     print(access_token)
     splatoon_token = get_splatoon_token(access_token, version)
@@ -280,6 +282,7 @@ def renew_cookie(session_token: str, version: str) -> UserInfo:
             splatoon_token.result.user.nsaId,
             splatoon_token.result.user.links.friendCode.id,
             result_id=__get_latest_result_id(),
+            host_type=host_type
         )
     )
 
@@ -297,10 +300,10 @@ def get_session_token_code(version: str):
         "session_token_code_challenge_method": "S256",
         "theme": "login_form",
     }
-    header = {
+    headers = {
         "user-agent": f"Salmonia/{version} @tkgling",
     }
-    response = session.get(url, headers=header, params=parameters)
+    response = session.get(url, headers=headers, params=parameters)
     return response.history[0].url
 
 
@@ -353,7 +356,7 @@ def get_access_token(session_token: str, version: str) -> AccessToken:
 
 
 def get_hash(access_token: str, timestamp: int, version: str) -> Hash:
-    url = "https://elifessler.com/s2s/api/gen2"
+    url = "https://s2s-hash-server.herokuapp.com/hash"
     parameters = {"naIdToken": access_token, "timestamp": timestamp}
     header = {
         "User-Agent": f"Salmonia/{version} @tkgling",
@@ -362,8 +365,9 @@ def get_hash(access_token: str, timestamp: int, version: str) -> Hash:
         response = session.post(url, headers=header, data=parameters)
         return Hash.from_json(response.text)
     except:
-        response = ErrorHash.from_json(response)
-        print(f"TypeError: {response.error}")
+        response = ErrorHash.from_json(response.text)
+        print(f"TypeError: {response.error}, response")
+        sys.exit(1)
 
 
 def get_flapg(access_token: str, version: str, type: Type) -> Flapg:
@@ -383,6 +387,7 @@ def get_flapg(access_token: str, version: str, type: Type) -> Flapg:
     except:
         response = ErrorHash.from_json(response)
         print(f"TypeError: {response.error}")
+        sys.exit(1)
 
 
 def get_splatoon_token(access_token: AccessToken, version: str):
