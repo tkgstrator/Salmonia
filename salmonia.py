@@ -130,7 +130,7 @@ class Salmonia:
             self.host_type = Environment(self.userinfo.host_type)
             self.uploaded_result_id = self.userinfo.result_id
             self.upload_local_result()
-        except FileNotFoundError as error:
+        except FileNotFoundError:
             self.sign_in()
             sys.exit(0)
 
@@ -186,7 +186,7 @@ class Salmonia:
             os.mkdir("results")
         results = os.listdir("results")
         if len(results) == 0:
-            return []
+            return [0]
         else:
             return sorted(
                 list(
