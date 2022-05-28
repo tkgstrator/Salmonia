@@ -254,6 +254,8 @@ def get_cookie(url_scheme, version: str, host_type: int = 0) -> UserInfo:
 
 def __get_latest_result_id() -> int:
     try:
+        if len(os.listdir("results")) == 0:
+            return 0
         return max(
             list(
                 map(
