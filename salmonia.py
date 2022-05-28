@@ -25,9 +25,11 @@ class APIVersion(Enum):
     V1 = "v1"
     V2 = "v2"
 
+
 class ResultType(Enum):
     LOCAL = 0
     ONLINE = 1
+
 
 class Environment(Enum):
     Production = 0
@@ -115,6 +117,7 @@ class Summary:
 class Results:
     summary: Summary
 
+
 session = requests.Session()
 
 
@@ -157,7 +160,9 @@ class Salmonia:
             response = Results.from_json(self.__request_with_auth(url).text)
             return response.summary.card.job_num
         except KeyError:
-            self.userinfo = iksm.renew_cookie(self.userinfo.session_token, self.version, self.host_type.value)
+            self.userinfo = iksm.renew_cookie(
+                self.userinfo.session_token, self.version, self.host_type.value
+            )
             url = "https://app.splatoon2.nintendo.net/api/coop_results"
             response = Results.from_json(self.__request_with_auth(url).text)
             return response.summary.card.job_num
@@ -178,15 +183,21 @@ class Salmonia:
                     )
                 )
             )
-    
-    def get_local_result_ids(self) -> [int]:
+
+    def get_local_result_ids(self) -> List[int]:
         if not os.path.exists("results"):
             os.mkdir("results")
         results = os.listdir("results")
         if len(results) == 0:
             return 0
         else:
-            return sorted(list(map(lambda x: int(os.path.splitext(os.path.basename(x))[0]), results)))
+            return sorted(
+                list(
+                    map(
+                        lambda x: int(os.path.splitext(os.path.basename(x))[0]), results
+                    )
+                )
+            )
 
     def __get_result(self, result_id) -> json:
         url = f"https://app.splatoon2.nintendo.net/api/coop_results/{result_id}"
@@ -206,7 +217,7 @@ class Salmonia:
             result = self.__get_result(result_id)
         if type == ResultType.LOCAL:
             result = self.__get_local_result(result_id)
-        
+
         # Upload a result
         url = f"{self.host_type.url()}/results"
         parameters = {"results": [result]}
@@ -225,12 +236,15 @@ class Salmonia:
 
     def upload_local_result(self):
         print(f"Launch Mode ({self.host_type.mode()})")
-        unuploaded_result_ids = list(filter(lambda x: x > self.uploaded_result_id ,self.get_local_result_ids()))
-        
+        unuploaded_result_ids = list(
+            filter(lambda x: x > self.uploaded_result_id, self.get_local_result_ids())
+        )
+
+        print(f"Unuploaded Results ({len(unuploaded_result_ids)})")
         # Upload local results
         for result_id in unuploaded_result_ids:
             self.__upload_result(result_id, ResultType.LOCAL)
-            
+
     def upload_all_result(self):
         latest_result_id = self.get_latest_result_id()
         local_result_id = self.get_local_latest_result_id()
