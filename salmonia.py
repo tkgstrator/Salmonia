@@ -132,8 +132,7 @@ class Salmonia:
             self.upload_local_result()
         except FileNotFoundError as error:
             self.sign_in()
-            self.userinfo: iksm.UserInfo = iksm.load()
-            self.upload_local_result()
+            sys.exit(0)
 
     def sign_in(self):
         print(iksm.get_session_token_code(self.version))

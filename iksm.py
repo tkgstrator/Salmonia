@@ -247,7 +247,7 @@ def get_cookie(url_scheme, version: str, host_type: int = 0) -> UserInfo:
             splatoon_token.result.user.nsaId,
             splatoon_token.result.user.links.friendCode.id,
             result_id=__get_latest_result_id(),
-            host_type=host_type
+            host_type=host_type,
         )
     )
 
@@ -282,7 +282,7 @@ def renew_cookie(session_token: str, version: str, host_type: int = 0) -> UserIn
             splatoon_token.result.user.nsaId,
             splatoon_token.result.user.links.friendCode.id,
             result_id=__get_latest_result_id(),
-            host_type=host_type
+            host_type=host_type,
         )
     )
 
@@ -494,5 +494,4 @@ def load() -> UserInfo:
         with open("config.json", "r") as f:
             return UserInfo.from_json(f.read())
     except Exception as e:
-        print(e)
         raise FileNotFoundError
