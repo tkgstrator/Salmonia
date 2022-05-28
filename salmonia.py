@@ -12,9 +12,6 @@ import os
 import time
 from enum import Enum
 
-# Load Environment Variables
-load_dotenv()
-
 
 class Status(Enum):
     CREATED = "created"
@@ -185,11 +182,12 @@ class Salmonia:
             )
 
     def get_local_result_ids(self) -> List[int]:
+        # If there is no local results, return empty list
         if not os.path.exists("results"):
             os.mkdir("results")
         results = os.listdir("results")
         if len(results) == 0:
-            return 0
+            return []
         else:
             return sorted(
                 list(
@@ -246,12 +244,16 @@ class Salmonia:
             self.__upload_result(result_id, ResultType.LOCAL)
 
     def upload_all_result(self):
+        # Get latest result id from SplatNet2
         latest_result_id = self.get_latest_result_id()
+        # Get latest result id from results directory
         local_result_id = self.get_local_latest_result_id()
 
         if latest_result_id == local_result_id:
             print(f"\r{datetime.now().strftime('%H:%m:%S')} No new results", end="")
-
+            return
+        # SplatNet2 does not have results which job id less than the latest_result_id - 49
         oldest_result_id = max(local_result_id + 1, latest_result_id - 49)
+
         for result_id in range(oldest_result_id, latest_result_id + 1):
-            self.__upload_result(result_id)
+            self.__upload_result(result_id, ResultType.ONLINE)
