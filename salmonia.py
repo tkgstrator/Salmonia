@@ -47,7 +47,7 @@ class Environment(Enum):
 
     def url(self) -> str:
         if self == Environment.Production:
-            return "https://api.splatnet2.com/v1"
+            return "https://api-dev.splatnet2.com/v1"
         elif self == Environment.Development:
             return "https://api-dev.splatnet2.com/v1"
         elif self == Environment.Sandbox:
