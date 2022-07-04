@@ -121,12 +121,12 @@ session = requests.Session()
 class Salmonia:
     version = iksm.get_app_version()
 
-    def __init__(self):
+    def __init__(self, player_id = None):
         if not os.path.exists("results"):
             os.mkdir("results")
         print(f"Salmonia v{self.version} for Splatoon 2")
         try:
-            self.userinfo: iksm.UserInfo = iksm.load()
+            self.userinfo: iksm.UserInfo = iksm.load(player_id)
             self.host_type = Environment(self.userinfo.host_type)
             self.uploaded_result_id = self.userinfo.result_id
             self.upload_local_result()
@@ -156,8 +156,10 @@ class Salmonia:
             response = Results.from_json(self.__request_with_auth(url).text)
             return response.summary.card.job_num
         except KeyError:
+            self.version = iksm.get_app_version()
             self.userinfo = iksm.renew_cookie(
-                self.userinfo.session_token, self.version, self.host_type.value
+                self.userinfo.session_token, self.version, self.host_type.value,
+                self.userinfo.multi
             )
             url = "https://app.splatoon2.nintendo.net/api/coop_results"
             response = Results.from_json(self.__request_with_auth(url).text)
@@ -166,9 +168,14 @@ class Salmonia:
             sys.exit(1)
 
     def get_local_latest_result_id(self) -> int:
-        if not os.path.exists("results"):
-            os.mkdir("results")
-        results = os.listdir("results")
+        fullpath = "results"
+        if not os.path.exists(fullpath):
+            os.mkdir(fullpath)
+        if self.userinfo.multi:
+            fullpath = f"results/{self.userinfo.nsa_id}"
+            if not os.path.exists(fullpath):
+                os.mkdir(fullpath)
+        results = os.listdir(fullpath)
         if len(results) == 0:
             return 0
         else:
@@ -182,9 +189,14 @@ class Salmonia:
 
     def get_local_result_ids(self) -> List[int]:
         # If there is no local results, return empty list
-        if not os.path.exists("results"):
-            os.mkdir("results")
-        results = os.listdir("results")
+        fullpath = "results"
+        if not os.path.exists(fullpath):
+            os.mkdir(fullpath)
+        if self.userinfo.multi:
+            fullpath = f"results/{self.userinfo.nsa_id}"
+            if not os.path.exists(fullpath):
+                os.mkdir(fullpath)
+        results = os.listdir(fullpath)
         if len(results) == 0:
             return [0]
         else:
@@ -199,12 +211,13 @@ class Salmonia:
     def __get_result(self, result_id) -> json:
         url = f"https://app.splatoon2.nintendo.net/api/coop_results/{result_id}"
         response = self.__request_with_auth(url).json()
-        with open(f"results/{result_id}.json", "w") as f:
+        path = f"results/{self.userinfo.nsa_id}/{result_id}.json" if self.userinfo.multi else f"results/{result_id}.json"
+        with open(path, "w") as f:
             json.dump(response, f)
         return response
 
     def __get_local_result(self, result_id) -> json:
-        path = f"results/{result_id}.json"
+        path = f"results/{self.userinfo.nsa_id}/{result_id}.json" if self.userinfo.multi else f"results/{result_id}.json"
         with open(path, mode="r") as f:
             return json.load(f)
 
@@ -223,7 +236,7 @@ class Salmonia:
             response = UploadResults.from_json(res.text)
             for result in response.results:
                 print(
-                    f"\r{datetime.now().strftime('%H:%m:%S')} Uploaded {result_id} -> {result.salmon_id}",
+                    f"\r{datetime.now().strftime('%H:%M:%S')} Uploaded {self.userinfo.nsa_id}/{result_id} -> {result.salmon_id}",
                     end="",
                 )
                 self.userinfo.job_num = max(result_id, self.userinfo.job_num)
@@ -249,7 +262,7 @@ class Salmonia:
         local_result_id = self.get_local_latest_result_id()
 
         if latest_result_id == local_result_id:
-            print(f"\r{datetime.now().strftime('%H:%m:%S')} No new results", end="")
+            print(f"\r{datetime.now().strftime('%H:%M:%S')} {self.userinfo.nsa_id} No new results", end="")
             return
         # SplatNet2 does not have results which job id less than the latest_result_id - 49
         oldest_result_id = max(local_result_id + 1, latest_result_id - 49)
