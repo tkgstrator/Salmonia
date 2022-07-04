@@ -5,14 +5,26 @@ import iksm
 import salmonia
 import time
 import schedule
+import json
+import argparse
 
 
-def main():
-    session = Salmonia()
-    schedule.every(10).seconds.do(session.upload_all_result)
+def main(args):
+    if args.multi:
+        with open("multi.json", 'r', encoding="utf-8") as f:
+            players = json.load(f)
+            for player in players['list']:
+                s = Salmonia(player)
+                schedule.every(10).seconds.do(s.upload_all_result)
+    else:
+        session = Salmonia()
+        schedule.every(10).seconds.do(session.upload_all_result)
     while True:
         schedule.run_pending()
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-multi', action=argparse.BooleanOptionalAction, default=False)
+    args = parser.parse_args()
+    main(args)
