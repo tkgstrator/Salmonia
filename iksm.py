@@ -204,6 +204,7 @@ class UserInfo:
     friend_code: str
     result_id: int = 0
     host_type: int = 0
+    multi: bool = False
 
     @property
     def job_num(self):
@@ -268,7 +269,7 @@ def __get_latest_result_id() -> int:
         return 0
 
 
-def renew_cookie(session_token: str, version: str, host_type: int = 0) -> UserInfo:
+def renew_cookie(session_token: str, version: str, host_type: int = 0, multi: bool = False) -> UserInfo:
     access_token = get_access_token(session_token, version)
     print(access_token)
     splatoon_token = get_splatoon_token(access_token, version)
@@ -285,6 +286,7 @@ def renew_cookie(session_token: str, version: str, host_type: int = 0) -> UserIn
             splatoon_token.result.user.links.friendCode.id,
             result_id=__get_latest_result_id(),
             host_type=host_type,
+            multi=multi,
         )
     )
 
@@ -484,16 +486,21 @@ def post(url: str, json: json):
 
 def save(data: UserInfo) -> UserInfo:
     try:
-        with open("config.json", "w") as f:
+        fname = (data.nsa_id + ".json") if data.multi else "config.json"
+        with open(fname, "w") as f:
             json.dump(asdict(data), f, indent=4)
         return data
     except:
         raise TypeError
 
 
-def load() -> UserInfo:
+def load(player_id = None) -> UserInfo:
+    prefix = "config" if player_id is None else player_id
     try:
-        with open("config.json", "r") as f:
-            return UserInfo.from_json(f.read())
+        with open(prefix + ".json", "r") as f:
+            ui = UserInfo.from_json(f.read())
+            if not player_id is None:
+                ui.multi = True
+            return ui
     except Exception as e:
         raise FileNotFoundError
