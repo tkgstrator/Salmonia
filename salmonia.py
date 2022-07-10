@@ -275,8 +275,8 @@ class Salmonia:
             self.upload_local_result()
 
         curtime = time.time()
-        # Check if Salmon Run is open
-        if (self.rotation['end'] == 0) or (curtime > self.rotation['end']):
+        # Check if Salmon Run is open (we allow 10mn for an extra run)
+        if (self.rotation['end'] == 0) or (curtime > (self.rotation['end'] + 600)):
             self.rotation = self.__get_rotation()
         if self.initializing:
             self.initializing = False
