@@ -129,10 +129,13 @@ class Salmonia:
             self.userinfo: iksm.UserInfo = iksm.load(player_id)
             self.host_type = Environment(self.userinfo.host_type)
             self.uploaded_result_id = self.userinfo.result_id
-            self.upload_local_result()
+            print(f"Launch Mode ({self.host_type.mode()})")
         except FileNotFoundError:
             self.sign_in()
             sys.exit(0)
+        self.rotation = { 'start' : 0, 'end': 0}
+        self.initializing = True
+        self.upload_error = False
 
     def sign_in(self):
         print(iksm.get_session_token_code(self.version))
@@ -208,6 +211,12 @@ class Salmonia:
                 )
             )
 
+    def __get_rotation(self) -> dict:
+        url = "https://app.splatoon2.nintendo.net/api/coop_schedules"
+        response = self.__request_with_auth(url).json()
+        first = response['schedules'][0]
+        return { 'start': first['start_time'], 'end': first['end_time']}
+    
     def __get_result(self, result_id) -> json:
         url = f"https://app.splatoon2.nintendo.net/api/coop_results/{result_id}"
         response = self.__request_with_auth(url).json()
@@ -228,6 +237,11 @@ class Salmonia:
         if type == ResultType.LOCAL:
             result = self.__get_local_result(result_id)
 
+        # If we got an upload error, don't upload what was downloaded
+        # if will be attempted next run
+        if self.upload_error:
+            return
+
         # Upload a result
         url = f"{self.host_type.url()}/results"
         parameters = {"results": [result]}
@@ -236,16 +250,15 @@ class Salmonia:
             response = UploadResults.from_json(res.text)
             for result in response.results:
                 print(
-                    f"\r{datetime.now().strftime('%H:%M:%S')} Uploaded {self.userinfo.nsa_id}/{result_id} -> {result.salmon_id}",
+                    f"\r{datetime.now().strftime('%m-%d %H:%M:%S')} Uploaded {self.userinfo.nsa_id}/{result_id} -> {result.salmon_id}",
                     end="",
                 )
                 self.userinfo.job_num = max(result_id, self.userinfo.job_num)
                 time.sleep(1)
         except Exception as error:
-            sys.exit(1)
+            self.upload_error = True
 
     def upload_local_result(self):
-        print(f"Launch Mode ({self.host_type.mode()})")
         unuploaded_result_ids = list(
             filter(lambda x: x > self.uploaded_result_id, self.get_local_result_ids())
         )
@@ -256,13 +269,29 @@ class Salmonia:
             self.__upload_result(result_id, ResultType.LOCAL)
 
     def upload_all_result(self):
+        # First run or after an error, upload local results
+        if self.upload_error or self.initializing:
+            self.upload_error = False
+            self.upload_local_result()
+
+        curtime = time.time()
+        # Check if Salmon Run is open
+        if (self.rotation['end'] == 0) or (curtime > self.rotation['end']):
+            self.rotation = self.__get_rotation()
+        if self.initializing:
+            self.initializing = False
+        elif curtime < self.rotation['start']:
+            print(f"\r{datetime.now().strftime('%m-%d %H:%M:%S')} {self.userinfo.nsa_id} Salmon Run closed", end="")
+            return
+
+
         # Get latest result id from SplatNet2
         latest_result_id = self.get_latest_result_id()
         # Get latest result id from results directory
         local_result_id = self.get_local_latest_result_id()
 
         if latest_result_id == local_result_id:
-            print(f"\r{datetime.now().strftime('%H:%M:%S')} {self.userinfo.nsa_id} No new results", end="")
+            print(f"\r{datetime.now().strftime('%m-%d %H:%M:%S')} {self.userinfo.nsa_id} No new results", end="")
             return
         # SplatNet2 does not have results which job id less than the latest_result_id - 49
         oldest_result_id = max(local_result_id + 1, latest_result_id - 49)
