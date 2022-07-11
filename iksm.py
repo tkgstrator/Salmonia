@@ -205,6 +205,7 @@ class UserInfo:
     friend_code: str
     result_id: int = 0
     host_type: int = 0
+    name: str = "(undefined name)"
     multi: bool = False
 
     @property
@@ -251,6 +252,7 @@ def get_cookie(session: Session, url_scheme: str, version: str, host_type: int =
             # should result_id for an initial run be 0?
             result_id=__get_latest_result_id(),
             host_type=host_type,
+            name=splatoon_token.result.user.name,
         )
     )
 
@@ -289,6 +291,7 @@ def renew_cookie(session: Session, userinfo: UserInfo, version: str, host_type: 
             splatoon_token.result.user.links.friendCode.id,
             result_id=userinfo.result_id,
             host_type=host_type,
+            name=splatoon_token.result.user.name,
             multi=userinfo.multi,
         )
     )
