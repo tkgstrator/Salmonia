@@ -4,6 +4,7 @@ from typing_extensions import Self
 from dataclasses_json import dataclass_json
 from typing import List, Type
 from dotenv import load_dotenv
+from requests import Session
 import requests
 import json
 import iksm
@@ -49,7 +50,7 @@ class Environment(Enum):
 
     def url(self) -> str:
         if self == Environment.Production:
-            return "https://api-dev.splatnet2.com/v1"
+            return "https://api.splatnet2.com/v1"
         elif self == Environment.Development:
             return "https://api-dev.splatnet2.com/v1"
         elif self == Environment.Sandbox:
@@ -115,15 +116,13 @@ class Results:
     summary: Summary
 
 
-session = requests.Session()
-
-
 class Salmonia:
-    version = iksm.get_app_version()
 
     def __init__(self, player_id = None):
         if not os.path.exists("results"):
             os.mkdir("results")
+        self.session = Session()
+        self.version = iksm.get_app_version(self.session)
         print(f"Salmonia v{self.version} for Splatoon 2")
         try:
             self.userinfo: iksm.UserInfo = iksm.load(player_id)
@@ -138,20 +137,27 @@ class Salmonia:
         self.upload_error = False
 
     def sign_in(self):
-        print(iksm.get_session_token_code(self.version))
+        print(iksm.get_session_token_code(self.session, self.version))
         while True:
             try:
                 # Get cookie for Production Mode
-                iksm.get_cookie(input(""), self.version)
+                iksm.get_cookie(self.session, input(""), self.version)
                 break
             except KeyboardInterrupt:
                 sys.exit(0)
 
     def __request_with_auth(self, url):
-        response = session.get(
+        response = self.session.get(
             url, cookies={"iksm_session": self.userinfo.iksm_session}
         )
         return response
+
+    def __renew_cookie(self):
+        self.version = iksm.get_app_version(self.session)
+        newuserinfo: iksm.UserInfo = iksm.renew_cookie(self.session, self.userinfo, 
+                                                        self.version, self.host_type.value)
+        self.userinfo = newuserinfo
+        self.session = Session()
 
     def get_latest_result_id(self) -> int:
         try:
@@ -159,15 +165,13 @@ class Salmonia:
             response = Results.from_json(self.__request_with_auth(url).text)
             return response.summary.card.job_num
         except KeyError:
-            self.version = iksm.get_app_version()
-            self.userinfo = iksm.renew_cookie(
-                self.userinfo.session_token, self.version, self.host_type.value,
-                self.userinfo.multi
-            )
+            self.__renew_cookie()
+            # retry should be a loop or exit gracefully with a warning
             url = "https://app.splatoon2.nintendo.net/api/coop_results"
             response = Results.from_json(self.__request_with_auth(url).text)
             return response.summary.card.job_num
-        except:
+        except Exception as e:
+            print(f"Uncaught exception : {e}")
             sys.exit(1)
 
     def get_local_latest_result_id(self) -> int:
@@ -214,7 +218,12 @@ class Salmonia:
     def __get_rotation(self) -> dict:
         url = "https://app.splatoon2.nintendo.net/api/coop_schedules"
         response = self.__request_with_auth(url).json()
-        first = response['schedules'][0]
+        try:
+            first = response['schedules'][0]
+        except KeyError:
+            self.__renew_cookie()
+            response = self.__request_with_auth(url).json()
+            first = response['schedules'][0]
         return { 'start': first['start_time'], 'end': first['end_time']}
     
     def __get_result(self, result_id) -> json:
@@ -246,7 +255,7 @@ class Salmonia:
         url = f"{self.host_type.url()}/results"
         parameters = {"results": [result]}
         try:
-            res = session.post(url, json=parameters)
+            res = self.session.post(url, json=parameters)
             response = UploadResults.from_json(res.text)
             for result in response.results:
                 print(
