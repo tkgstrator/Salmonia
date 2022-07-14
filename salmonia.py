@@ -250,7 +250,13 @@ class Salmonia:
         # if will be attempted next run
         if self.upload_error:
             return
-
+        if self.userinfo.noupload:
+            print(
+                    f"\r{datetime.now().strftime('%m-%d %H:%M:%S')} Local Process {self.userinfo.nsa_id}/{result_id}",
+                    end="",
+                )
+            self.userinfo.job_num = max(result_id, self.userinfo.job_num)
+            return
         # Upload a result
         url = f"{self.host_type.url()}/results"
         parameters = {"results": [result]}
