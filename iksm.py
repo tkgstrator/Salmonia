@@ -206,6 +206,7 @@ class UserInfo:
     result_id: int = 0
     host_type: int = 0
     name: str = "(undefined name)"
+    noupload: bool = False
     multi: bool = False
 
     @property
@@ -293,6 +294,7 @@ def renew_cookie(session: Session, userinfo: UserInfo, version: str, host_type: 
             host_type=host_type,
             name=splatoon_token.result.user.name,
             multi=userinfo.multi,
+            nouload=userinfo.noupload,
         )
     )
 
