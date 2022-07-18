@@ -171,8 +171,8 @@ class Salmonia:
             response = Results.from_json(self.__request_with_auth(url).text)
             return response.summary.card.job_num
         except Exception as e:
-            print(f"Uncaught exception : {e}")
-            sys.exit(1)
+            # return the last processed id -> no new game, stay silent
+            return self.userinfo.result_id
 
     def get_local_latest_result_id(self) -> int:
         fullpath = "results"
