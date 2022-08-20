@@ -294,7 +294,7 @@ def renew_cookie(session: Session, userinfo: UserInfo, version: str, host_type: 
             host_type=host_type,
             name=splatoon_token.result.user.name,
             multi=userinfo.multi,
-            nouload=userinfo.noupload,
+            noupload=userinfo.noupload,
         )
     )
 
