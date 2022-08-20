@@ -3,6 +3,7 @@ from xml.dom import NotFoundErr
 from dataclasses_json import dataclass_json
 from typing import List, Type
 from typing import Optional
+from requests import Session
 import requests
 import re
 import urllib
@@ -204,6 +205,8 @@ class UserInfo:
     friend_code: str
     result_id: int = 0
     host_type: int = 0
+    name: str = "(undefined name)"
+    noupload: bool = False
     multi: bool = False
 
     @property
@@ -220,7 +223,6 @@ class UserInfo:
         save(self)
 
 
-session = requests.Session()
 session_token_code_challenge = "tYLPO5PxpK-DTcAHJXugD7ztvAZQlo0DQQp3au5ztuM"
 session_token_code_verifier = "OwaTAOolhambwvY3RXSD-efxqdBEVNnQkc0bBJ7zaak"
 
@@ -230,25 +232,28 @@ class Type(Enum):
     APP = "app"
 
 
-def get_cookie(url_scheme, version: str, host_type: int = 0) -> UserInfo:
-    session_token = get_session_token(url_scheme, version)
-    print(session_token)
-    access_token = get_access_token(session_token.session_token, version)
-    print(access_token)
-    splatoon_token = get_splatoon_token(access_token, version)
-    print(splatoon_token)
-    splatoon_access_token = get_splatoon_access_token(splatoon_token, version)
-    print(splatoon_access_token)
-    iksm_session = get_iksm_session(splatoon_access_token, version)
-    print(iksm_session)
+def get_cookie(session: Session, url_scheme: str, version: str, host_type: int = 0) -> UserInfo:
+    RAWOut = open(1, 'w', encoding='utf8', closefd=False)
+    session_token = get_session_token(session, url_scheme, version)
+    print(f"Session token: {session_token}", file=RAWOut)
+    access_token = get_access_token(session, session_token.session_token, version)
+    print(f"Access token: {access_token}", file=RAWOut)
+    splatoon_token = get_splatoon_token(session, access_token, version)
+    print(f"Splatoon token: {splatoon_token}", file=RAWOut)
+    splatoon_access_token = get_splatoon_access_token(session, splatoon_token, version)
+    print(f"Splatoon Access Token: {splatoon_access_token}", file=RAWOut)
+    iksm_session = get_iksm_session(session, splatoon_access_token, version)
+    print(f"Iksm session: {iksm_session}", file=RAWOut)
     return save(
         UserInfo(
             session_token.session_token,
             iksm_session,
             splatoon_token.result.user.nsaId,
             splatoon_token.result.user.links.friendCode.id,
+            # should result_id for an initial run be 0?
             result_id=__get_latest_result_id(),
             host_type=host_type,
+            name=splatoon_token.result.user.name,
         )
     )
 
@@ -269,29 +274,32 @@ def __get_latest_result_id() -> int:
         return 0
 
 
-def renew_cookie(session_token: str, version: str, host_type: int = 0, multi: bool = False) -> UserInfo:
-    access_token = get_access_token(session_token, version)
-    print(access_token)
-    splatoon_token = get_splatoon_token(access_token, version)
-    print(splatoon_token)
-    splatoon_access_token = get_splatoon_access_token(splatoon_token, version)
-    print(splatoon_access_token)
-    iksm_session = get_iksm_session(splatoon_access_token, version)
-    print(iksm_session)
+def renew_cookie(session: Session, userinfo: UserInfo, version: str, host_type: int = 0) -> UserInfo:
+    RAWOut = open(1, 'w', encoding='utf8', closefd=False)
+    access_token = get_access_token(session, userinfo.session_token, version)
+    print(f"Access token: {access_token}", file=RAWOut)
+    splatoon_token = get_splatoon_token(session, access_token, version)
+    print(f"Splatoon token: {splatoon_token}", file=RAWOut)
+    splatoon_access_token = get_splatoon_access_token(session, splatoon_token, version)
+    print(f"Splatoon Access Token: {splatoon_access_token}", file=RAWOut)
+    iksm_session = get_iksm_session(session, splatoon_access_token, version)
+    print(f"Iksm session: {iksm_session}", file=RAWOut)
     return save(
         UserInfo(
-            session_token,
+            userinfo.session_token,
             iksm_session,
             splatoon_token.result.user.nsaId,
             splatoon_token.result.user.links.friendCode.id,
-            result_id=__get_latest_result_id(),
+            result_id=userinfo.result_id,
             host_type=host_type,
-            multi=multi,
+            name=splatoon_token.result.user.name,
+            multi=userinfo.multi,
+            nouload=userinfo.noupload,
         )
     )
 
 
-def get_session_token_code(version: str):
+def get_session_token_code(session: Session, version: str):
     url = "https://accounts.nintendo.com/connect/1.0.0/authorize"
 
     parameters = {
@@ -311,7 +319,7 @@ def get_session_token_code(version: str):
     return response.history[0].url
 
 
-def get_session_token(url_scheme: str, version: str) -> SessionToken:
+def get_session_token(session: Session, url_scheme: str, version: str) -> SessionToken:
     session_token_code = re.search("de=(.*)&", url_scheme).group(1)
 
     url = "https://accounts.nintendo.com/connect/1.0.0/api/session_token"
@@ -337,7 +345,7 @@ def get_session_token(url_scheme: str, version: str) -> SessionToken:
         sys.exit(1)
 
 
-def get_access_token(session_token: str, version: str) -> AccessToken:
+def get_access_token(session: Session, session_token: str, version: str) -> AccessToken:
     url = "https://accounts.nintendo.com/connect/1.0.0/api/token"
     parameters = {
         "client_id": "71b963c1b7b6d119",
@@ -359,7 +367,7 @@ def get_access_token(session_token: str, version: str) -> AccessToken:
         sys.exit(1)
 
 
-def get_hash(access_token: str, timestamp: int, version: str) -> Hash:
+def get_hash(session: Session, access_token: str, timestamp: int, version: str) -> Hash:
     url = "https://s2s-hash-server.herokuapp.com/hash"
     parameters = {"naIdToken": access_token, "timestamp": timestamp}
     header = {
@@ -374,14 +382,14 @@ def get_hash(access_token: str, timestamp: int, version: str) -> Hash:
         sys.exit(1)
 
 
-def get_flapg(access_token: str, version: str, type: Type) -> Flapg:
+def get_flapg(session: Session, access_token: str, version: str, type: Type) -> Flapg:
     url = "https://flapg.com/ika2/api/login"
     timestamp = int(time.time())
     headers = {
         "x-token": access_token,
         "x-time": str(timestamp),
         "x-guid": "037239ef-1914-43dc-815d-178aae7d8934",
-        "x-hash": get_hash(access_token, timestamp, version).hash,
+        "x-hash": get_hash(session, access_token, timestamp, version).hash,
         "x-ver": "3",
         "x-iid": type.value,
     }
@@ -394,9 +402,9 @@ def get_flapg(access_token: str, version: str, type: Type) -> Flapg:
         sys.exit(1)
 
 
-def get_splatoon_token(access_token: AccessToken, version: str):
+def get_splatoon_token(session: Session, access_token: AccessToken, version: str):
     url = "https://api-lp1.znc.srv.nintendo.net/v3/Account/Login"
-    result = get_flapg(access_token.access_token, version, Type.NSO).result
+    result = get_flapg(session, access_token.access_token, version, Type.NSO).result
     parameters = {
         "parameter": {
             "f": result.f,
@@ -423,10 +431,10 @@ def get_splatoon_token(access_token: AccessToken, version: str):
         print(f"TypeError: {response.error}")
 
 
-def get_splatoon_access_token(splatoon_token: SplatoonToken, version: str):
+def get_splatoon_access_token(session: Session, splatoon_token: SplatoonToken, version: str):
     url = "https://api-lp1.znc.srv.nintendo.net/v2/Game/GetWebServiceToken"
     access_token = splatoon_token.result.webApiServerCredential.accessToken
-    result = get_flapg(access_token, version, Type.APP).result
+    result = get_flapg(session, access_token, version, Type.APP).result
     parameters = {
         "parameter": {
             "id": 5741031244955648,
@@ -452,7 +460,7 @@ def get_splatoon_access_token(splatoon_token: SplatoonToken, version: str):
         print(f"TypeError: {response.errorMessage}")
 
 
-def get_iksm_session(splatoon_access_token: SplatoonAccessToken, version: str):
+def get_iksm_session(session: Session, splatoon_access_token: SplatoonAccessToken, version: str):
     url = "https://app.splatoon2.nintendo.net"
     headers = {
         "Cookie": "iksm_session=",
@@ -466,7 +474,7 @@ def get_iksm_session(splatoon_access_token: SplatoonAccessToken, version: str):
         print(f"TypeError: invalid splatoon access token")
 
 
-def get_app_version() -> str:
+def get_app_version(session: Session) -> str:
     url = "https://itunes.apple.com/lookup?id=1234806557"
     try:
         response = session.get(url)
@@ -475,12 +483,12 @@ def get_app_version() -> str:
         print(f"TypeError: invalid id")
 
 
-def request(url: str, iksm_session: str) -> str:
+def request(session: Session, url: str, iksm_session: str) -> str:
     cookies = dict(iksm_session=iksm_session)
     return session.get(url, cookies=cookies).text
 
 
-def post(url: str, json: json):
+def post(session: Session, url: str, json: json):
     session.post(url, json=json)
 
 

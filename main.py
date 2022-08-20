@@ -13,9 +13,11 @@ def main(args):
     if args.multi:
         with open("multi.json", 'r', encoding="utf-8") as f:
             players = json.load(f)
+            interval_offset = 0
             for player in players['list']:
                 s = Salmonia(player)
-                schedule.every(10).seconds.do(s.upload_all_result)
+                schedule.every(10+interval_offset).seconds.do(s.upload_all_result)
+                interval_offset += 1
     else:
         session = Salmonia()
         schedule.every(10).seconds.do(session.upload_all_result)
