@@ -23,12 +23,6 @@ class ErrorNSO:
 
 @dataclass_json
 @dataclass
-class ErrorHash:
-    error: str
-
-
-@dataclass_json
-@dataclass
 class Information:
     minimumOsVersion: str
     version: str
@@ -170,23 +164,10 @@ class SplatoonAccessToken:
 
 @dataclass_json
 @dataclass
-class Hash:
-    hash: str
-
-
-@dataclass_json
-@dataclass
-class FlapgResult:
+class Imink:
     f: str
-    p1: str
-    p2: str
-    p3: str
-
-
-@dataclass_json
-@dataclass
-class Flapg:
-    result: FlapgResult
+    timestamp: int
+    request_id: str
 
 
 @dataclass_json
@@ -227,13 +208,15 @@ session_token_code_challenge = "tYLPO5PxpK-DTcAHJXugD7ztvAZQlo0DQQp3au5ztuM"
 session_token_code_verifier = "OwaTAOolhambwvY3RXSD-efxqdBEVNnQkc0bBJ7zaak"
 
 
-class Type(Enum):
-    NSO = "nso"
-    APP = "app"
+class IminkType(Enum):
+    NSO = "1"
+    APP = "2"
 
 
-def get_cookie(session: Session, url_scheme: str, version: str, host_type: int = 0) -> UserInfo:
-    RAWOut = open(1, 'w', encoding='utf8', closefd=False)
+def get_cookie(
+    session: Session, url_scheme: str, version: str, host_type: int = 0
+) -> UserInfo:
+    RAWOut = open(1, "w", encoding="utf8", closefd=False)
     session_token = get_session_token(session, url_scheme, version)
     print(f"Session token: {session_token}", file=RAWOut)
     access_token = get_access_token(session, session_token.session_token, version)
@@ -274,8 +257,10 @@ def __get_latest_result_id() -> int:
         return 0
 
 
-def renew_cookie(session: Session, userinfo: UserInfo, version: str, host_type: int = 0) -> UserInfo:
-    RAWOut = open(1, 'w', encoding='utf8', closefd=False)
+def renew_cookie(
+    session: Session, userinfo: UserInfo, version: str, host_type: int = 0
+) -> UserInfo:
+    RAWOut = open(1, "w", encoding="utf8", closefd=False)
     access_token = get_access_token(session, userinfo.session_token, version)
     print(f"Access token: {access_token}", file=RAWOut)
     splatoon_token = get_splatoon_token(session, access_token, version)
@@ -367,50 +352,34 @@ def get_access_token(session: Session, session_token: str, version: str) -> Acce
         sys.exit(1)
 
 
-def get_hash(session: Session, access_token: str, timestamp: int, version: str) -> Hash:
-    url = "https://s2s-hash-server.herokuapp.com/hash"
-    parameters = {"naIdToken": access_token, "timestamp": timestamp}
-    header = {
-        "User-Agent": f"Salmonia/{version} @tkgling",
-    }
-    try:
-        response = session.post(url, headers=header, data=parameters)
-        return Hash.from_json(response.text)
-    except:
-        response = ErrorHash.from_json(response.text)
-        print(f"TypeError: {response.error}, response")
-        sys.exit(1)
-
-
-def get_flapg(session: Session, access_token: str, version: str, type: Type) -> Flapg:
-    url = "https://flapg.com/ika2/api/login"
-    timestamp = int(time.time())
+def get_imink(
+    session: Session, access_token: str, version: str, type: IminkType
+) -> Imink:
+    url = "https://api.imink.app/f"
     headers = {
-        "x-token": access_token,
-        "x-time": str(timestamp),
-        "x-guid": "037239ef-1914-43dc-815d-178aae7d8934",
-        "x-hash": get_hash(session, access_token, timestamp, version).hash,
-        "x-ver": "3",
-        "x-iid": type.value,
+        "User-Agent": f"Salmonia/{version} @tkgling",
+        "Accept": "application/json",
     }
+    parameters = {"hash_method": type.value, "token": access_token}
     try:
-        response = session.get(url, headers=headers)
-        return Flapg.from_json(response.text)
+        response = session.post(url, headers=headers, json=parameters)
+        print(Imink.from_json(response.text))
+        return Imink.from_json(response.text)
     except:
-        response = ErrorHash.from_json(response)
+        response = Imink.from_json(response)
         print(f"TypeError: {response.error}")
         sys.exit(1)
 
 
 def get_splatoon_token(session: Session, access_token: AccessToken, version: str):
     url = "https://api-lp1.znc.srv.nintendo.net/v3/Account/Login"
-    result = get_flapg(session, access_token.access_token, version, Type.NSO).result
+    result = get_imink(session, access_token.access_token, version, IminkType.NSO)
     parameters = {
         "parameter": {
             "f": result.f,
-            "naIdToken": result.p1,
-            "timestamp": result.p2,
-            "requestId": result.p3,
+            "naIdToken": access_token.access_token,
+            "timestamp": result.timestamp,
+            "requestId": result.request_id,
             "naCountry": "JP",
             "naBirthday": "1990-01-01",
             "language": "ja-JP",
@@ -431,17 +400,19 @@ def get_splatoon_token(session: Session, access_token: AccessToken, version: str
         print(f"TypeError: {response.error}")
 
 
-def get_splatoon_access_token(session: Session, splatoon_token: SplatoonToken, version: str):
+def get_splatoon_access_token(
+    session: Session, splatoon_token: SplatoonToken, version: str
+):
     url = "https://api-lp1.znc.srv.nintendo.net/v2/Game/GetWebServiceToken"
     access_token = splatoon_token.result.webApiServerCredential.accessToken
-    result = get_flapg(session, access_token, version, Type.APP).result
+    result = get_imink(session, access_token, version, IminkType.APP)
     parameters = {
         "parameter": {
             "id": 5741031244955648,
             "f": result.f,
-            "registrationToken": result.p1,
-            "timestamp": result.p2,
-            "requestId": result.p3,
+            "registrationToken": access_token,
+            "timestamp": result.timestamp,
+            "requestId": result.request_id,
         }
     }
     headers = {
@@ -460,7 +431,9 @@ def get_splatoon_access_token(session: Session, splatoon_token: SplatoonToken, v
         print(f"TypeError: {response.errorMessage}")
 
 
-def get_iksm_session(session: Session, splatoon_access_token: SplatoonAccessToken, version: str):
+def get_iksm_session(
+    session: Session, splatoon_access_token: SplatoonAccessToken, version: str
+):
     url = "https://app.splatoon2.nintendo.net"
     headers = {
         "Cookie": "iksm_session=",
@@ -502,7 +475,7 @@ def save(data: UserInfo) -> UserInfo:
         raise TypeError
 
 
-def load(player_id = None) -> UserInfo:
+def load(player_id=None) -> UserInfo:
     prefix = "config" if player_id is None else player_id
     try:
         with open(prefix + ".json", "r") as f:
