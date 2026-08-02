@@ -1,0 +1,21 @@
+name: Back-merge
+
+# リリース (master 宛て PR) がマージされたら develop を master へ fast-forward する。
+# 実体は共有の再利用ワークフロー: https://github.com/qtmleap/actions
+#
+# workflow_dispatch は手動リカバリ用。fast-forward できない場合は警告を出して
+# 何もしないため、いつ叩いても安全。
+on:
+  pull_request:
+    branches: [master]
+    types: [closed]
+  workflow_dispatch:
+
+# 再利用ワークフローは呼び出し元より広い権限を持てないため、ここで宣言する。
+permissions:
+  contents: write
+
+jobs:
+  backmerge:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
+    uses: qtmleap/actions/.github/workflows/backmerge.yaml@v1
